@@ -9,7 +9,6 @@ require("rh.plugins.telescope")
 require("rh.plugins.nvim-cmp")
 
 require("rh.plugins.lsp.mason")
-require("rh.plugins.lsp.lspsaga")
 require("rh.plugins.lsp.lspconfig")
 require("rh.plugins.lsp.null-is")
 require("rh.plugins.autopairs")

@@ -36,7 +36,7 @@ keymap.set("n", "<leader>ch", "<cmd> NvCheatsheet <CR>") -- toggle split window 
 -- ["<leader>ch"] = { "<cmd> NvCheatsheet <CR>", "Mapping cheatsheet" }
 
 -- vim-maximizer
-keymap.set("n", "<leader>vm", ":MaximizerToggle<CR>") -- toggle split window maximization
+keymap.set("n", "<leader>sm", ":MaximizerToggle<CR>") -- toggle split window maximization
 
 -- nvim-tree
 keymap.set("n", "<leader>tt", ":NvimTreeToggle<CR>") -- toggle file explorer
