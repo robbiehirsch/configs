@@ -1,0 +1,21 @@
+// Place your key bindings in this file to override the defaults
+[
+    {
+        "key": "shift+cmd+r", 
+        "command": "-rerunSearchEditorSearch",
+        "when": "inSarchEditor'"
+    },
+    {
+        "key": "shift+cmd+r", 
+        "command": "-rerunSearchEditorSearch",
+        "when": "inSearchEditor"
+    },
+    {
+        "key": "shift+cmd+r", 
+        "command": "workbench.files.action.showActiveFileInExplorer",
+    },
+    {
+        "key": "shift+cmd+c", 
+        "command": "workbench.files.action.collapseExplorerFolders",
+    },
+]
