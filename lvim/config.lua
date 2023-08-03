@@ -4,6 +4,9 @@
 -- Discord: https://discord.com/invite/Xb9B4Ny
 
 vim.opt.iskeyword:append("-")
+vim.opt.swapfile = false
+vim.opt.backup = false
+vim.opt.updatetime = 50
 
 -- line wrapping, tabs, and stuff
 vim.opt.tabstop = 4
@@ -17,21 +20,24 @@ vim.opt.linebreak = true
 -- search
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
-
+vim.opt.hlsearch = false
+vim.opt.incsearch = true
 
 -- windows
 vim.opt.splitbelow = true
 vim.opt.splitright = true
 
-
 -- status bar
 lvim.builtin.lualine.style = "default"
 lvim.builtin.lualine.theme = "OceanicNext"
 
-
 -- colorscheme
 lvim.colorscheme = "tokyonight"
+vim.opt.termguicolors = true
 
+-- undo
+vim.opt.undodir = os.getenv("HOME") .. "/.vim/undodir"
+vim.opt.undofile = true
 
 -- keymaps
 lvim.keys.normal_mode["<S-x>"] = ":BufferKill<CR>"
@@ -39,6 +45,10 @@ lvim.keys.normal_mode["<leader>wv"] = "<C-w>v"
 lvim.keys.normal_mode["<leader>wh"] = "<C-w>s"
 lvim.keys.normal_mode["<leader>we"] = "<C-w>="
 lvim.keys.normal_mode["<leader>wx"] = ":close<CR>"
+
+
+-- fix monorepo nvimtree
+lvim.builtin.project.patterns = { ".git" }
 
 -- vim.keymap.set("n", "<leader>wv", "<C-w>v") -- split window --[[ vertically ]]
 -- vim.keymap.set("n", "<leader>wh", "<C-w>s") -- split window horizontally
@@ -125,5 +135,8 @@ lvim.plugins = {
                 desc = "Toggle Flash Search"
             },
         },
+    },
+    {
+        "fatih/vim-go"
     }
 }
