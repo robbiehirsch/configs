@@ -1,7 +1,12 @@
 {
-  "err handling": {
-    "prefix": "er",
+  "err_return": {
+    "prefix": "err",
     "body": ["if (err!=nil){\n return err\n}"],
-    "description": "Err handling"
-  }
+    "description": "Err handling: Return"
+  },
+  "err_log": {
+    "prefix": "erlog",
+    "body": ["if (err!=nil){\n\tfmt.Errorf(\"There was an err, %v\", err)\n}"],
+    "description": "Err handling: Log"
+  },
 }
