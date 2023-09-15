@@ -1,0 +1,7 @@
+{
+  "err handling": {
+    "prefix": "er",
+    "body": ["if (err!=nil){\n return err\n}"],
+    "description": "Err handling"
+  }
+}

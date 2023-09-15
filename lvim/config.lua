@@ -8,6 +8,7 @@ vim.opt.swapfile = false
 vim.opt.backup = false
 vim.opt.updatetime = 50
 
+
 -- line wrapping, tabs, and stuff
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
@@ -20,6 +21,8 @@ vim.opt.linebreak = true
 -- search
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
+vim.opt.smarttab = true
+vim.opt.smartindent = true
 vim.opt.hlsearch = false
 vim.opt.incsearch = true
 
@@ -48,7 +51,7 @@ lvim.keys.normal_mode["<leader>wx"] = ":close<CR>"
 
 
 -- fix monorepo nvimtree
-lvim.builtin.project.patterns = { ".git" }
+lvim.builtin.project.patterns = { ".git", ".marksman.toml" }
 
 -- vim.keymap.set("n", "<leader>wv", "<C-w>v") -- split window --[[ vertically ]]
 -- vim.keymap.set("n", "<leader>wh", "<C-w>s") -- split window horizontally
@@ -59,6 +62,8 @@ lvim.builtin.project.patterns = { ".git" }
 -- vim.keymap.set("n", "<leader>tx", ":tabclose<CR>") -- close current tab
 -- vim.keymap.set("n", "<leader>tn", ":tabn<CR>") --  go to next tab
 -- vim.keymap.set("n", "<leader>tp", ":tabp<CR>") --  go to previous tab
+
+require("lvim.lsp.manager").setup("marksman")
 
 -- plugins
 lvim.plugins = {
