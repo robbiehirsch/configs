@@ -1,12 +1,23 @@
 {
-  "errReturn": {
-    "prefix": "err",
-    "body": ["if (err!=nil){\n\treturn err\n}"],
-    "description": "Err handling: Return"
-  },
-  "errLog": {
-    "prefix": "erlog",
-    "body": ["if (err!=nil){\n\tfmt.Errorf(\"There was an err, %v\", err)\n}"],
-    "description": "Err handling: Log"
-  }
+    "errReturn": {
+        "prefix": "_err",
+        "body": [
+            "if (err!=nil){\n\treturn err\n}"
+        ],
+        "description": "Err handling: Return"
+    },
+    "errLog": {
+        "prefix": "_erlog",
+        "body": [
+            "if (err!=nil){\n\tfmt.Errorf(\"There was an err, %v\", err)\n}"
+        ],
+        "description": "Err handling: Log"
+    },
+    "printLn": {
+        "prefix": "_pl",
+        "body": [
+            "fmt.Println($1)"
+        ],
+        "description": "fmt.Println"
+    }
 }
