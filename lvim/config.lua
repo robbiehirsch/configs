@@ -64,11 +64,15 @@ lvim.builtin.project.patterns = { ".git", ".marksman.toml" }
 -- vim.keymap.set("n", "<leader>tp", ":tabp<CR>") --  go to previous tab
 
 require("lvim.lsp.manager").setup("marksman")
+require('nvim-ts-autotag').setup()
 
 -- plugins
 lvim.plugins = {
     {
         "tpope/vim-surround"
+    },
+    {
+        "windwp/nvim-ts-autotag"
     },
     {
         "bluz71/vim-nightfly-colors",
