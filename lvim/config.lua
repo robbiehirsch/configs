@@ -53,18 +53,18 @@ lvim.keys.normal_mode["<leader>wx"] = ":close<CR>"
 -- fix monorepo nvimtree
 lvim.builtin.project.patterns = { ".git", ".marksman.toml" }
 
--- vim.keymap.set("n", "<leader>wv", "<C-w>v") -- split window --[[ vertically ]]
--- vim.keymap.set("n", "<leader>wh", "<C-w>s") -- split window horizontally
--- vim.keymap.set("n", "<leader>we", "<C-w>=") -- make split windows equal width & height
--- vim.keymap.set("n", "<leader>wx", ":close<CR>") -- close current split window
+-- require('mason').setup({})
+-- require("mason-lspconfig").setup { 
+--     ensure_installed = {
+--         "marksman", 
+--     },
+-- }
 
--- vim.keymap.set("n", "<leader>to", ":tabnew<CR>") -- open new tab
--- vim.keymap.set("n", "<leader>tx", ":tabclose<CR>") -- close current tab
--- vim.keymap.set("n", "<leader>tn", ":tabn<CR>") --  go to next tab
--- vim.keymap.set("n", "<leader>tp", ":tabp<CR>") --  go to previous tab
 
-require("lvim.lsp.manager").setup("marksman")
 require('nvim-ts-autotag').setup()
+
+-- Load templ configuration
+require('setup-templ').config()
 
 -- plugins
 lvim.plugins = {
@@ -100,52 +100,13 @@ lvim.plugins = {
         }
     },
     {
-        "folke/flash.nvim",
-        event = "VeryLazy",
-        opts = {},
-        keys = {
-            {
-                "<leader>j",
-                mode = { "n", "x", "o" },
-                function()
-                    require("flash").jump({
-                        search = {
-                            mode = function(str)
-                                return "\\<" .. str
-                            end,
-                        },
-                    })
-                end,
-                -- function() require("flash").jump() end,
-                desc = "Flash"
-            },
-            {
-                "<leader>J",
-                mode = { "n", "o", "x" },
-                function() require("flash").treesitter() end,
-                desc = "Flash Treesitter"
-            },
-            {
-                "<leader>r",
-                mode = "o",
-                function() require("flash").remote() end,
-                desc = "Remote Flash"
-            },
-            {
-                "<leader>R",
-                mode = { "o", "x" },
-                function() require("flash").treesitter_search() end,
-                desc = "Treesitter Search"
-            },
-            {
-                "<c-s>",
-                mode = { "c" },
-                function() require("flash").toggle() end,
-                desc = "Toggle Flash Search"
-            },
-        },
+        "fatih/vim-go"
     },
     {
-        "fatih/vim-go"
+        "joerdav/templ.vim",
+        config = function()
+            -- This will automatically set up the filetype and syntax for .templ files
+            vim.cmd([[autocmd BufRead,BufNewFile *.templ set filetype=templ]])
+        end
     }
 }
