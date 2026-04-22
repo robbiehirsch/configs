@@ -49,6 +49,11 @@ lvim.keys.normal_mode["<leader>wh"] = "<C-w>s"
 lvim.keys.normal_mode["<leader>we"] = "<C-w>="
 lvim.keys.normal_mode["<leader>wx"] = ":close<CR>"
 
+vim.keymap.set("n", "<leader>ap", function()
+  require("custom.aws_creds").paste()
+end, { desc = "Paste AWS SSO credentials" })
+
+
 
 -- fix monorepo nvimtree
 lvim.builtin.project.patterns = { ".git", ".marksman.toml" }
