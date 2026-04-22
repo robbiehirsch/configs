@@ -53,7 +53,8 @@ lvim.keys.normal_mode["<leader>wx"] = ":close<CR>"
 -- fix monorepo nvimtree
 lvim.builtin.project.patterns = { ".git", ".marksman.toml" }
 
--- require('mason').setup({})
+require('mason').setup()
+require('setup-templ').config()
 -- require("mason-lspconfig").setup { 
 --     ensure_installed = {
 --         "marksman", 
@@ -64,7 +65,7 @@ lvim.builtin.project.patterns = { ".git", ".marksman.toml" }
 require('nvim-ts-autotag').setup()
 
 -- Load templ configuration
-require('setup-templ').config()
+-- require('setup-templ').config()
 
 -- plugins
 lvim.plugins = {
