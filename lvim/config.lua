@@ -69,6 +69,26 @@ require('setup-templ').config()
 
 require('nvim-ts-autotag').setup()
 
+-- curlman: Postman-style API client (local module at lua/rh/curlman)
+require("rh.curlman").setup({
+  -- Point these at your exported Postman v2.1 files, or run :CurlmanDemo first.
+  -- collection  = "~/apis/work.postman_collection.json",
+  -- environment = "~/apis/work.postman_environment.json",
+  -- For self-signed / corporate certs: curl = { insecure = true },
+})
+-- Keymaps under <leader>C  (<leader>a is taken by your AWS creds paste)
+lvim.builtin.which_key.mappings["C"] = {
+  name = "Curlman (API)",
+  p = { "<cmd>Curlman<cr>", "Pick & send request" },
+  r = { "<cmd>CurlmanRun<cr>", "Re-send last request" },
+  e = { "<cmd>CurlmanEnv<cr>", "Choose environment" },
+  l = { "<cmd>CurlmanLoad<cr>", "Load collection" },
+  i = { "<cmd>CurlmanInfo<cr>", "Response info" },
+  d = { "<cmd>CurlmanDiff<cr>", "Diff last two" },
+  h = { "<cmd>CurlmanHistory<cr>", "History" },
+  s = { "<cmd>CurlmanSave<cr>", "Save response" },
+}
+
 -- Load templ configuration
 -- require('setup-templ').config()
 

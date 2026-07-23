@@ -14,3 +14,12 @@ require("rh.plugins.lsp.null-is")
 require("rh.plugins.autopairs")
 require("rh.plugins.treesitter")
 require("rh.plugins.gitsigns")
+
+-- curlman: Postman-style API client (local plugin, lua/rh/curlman)
+require("rh.curlman").setup({
+  -- Point these at your exported Postman v2.1 files. You can also load at
+  -- runtime with :CurlmanLoad / :CurlmanLoadEnv, or try :CurlmanDemo first.
+  -- collection  = "~/apis/work.postman_collection.json",
+  -- environment = "~/apis/work.postman_environment.json",
+  -- For self-signed / corporate certs: curl = { insecure = true },
+})

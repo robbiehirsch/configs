@@ -58,3 +58,13 @@ keymap.set("n", "<leader>gc", "<cmd>Telescope git_commits<cr>") -- list all git 
 keymap.set("n", "<leader>gfc", "<cmd>Telescope git_bcommits<cr>") -- list git commits for current file/buffer (use <cr> to checkout) ["gfc" for git file commits]
 keymap.set("n", "<leader>gb", "<cmd>Telescope git_branches<cr>") -- list git branches (use <cr> to checkout) ["gb" for git branch]
 keymap.set("n", "<leader>gs", "<cmd>Telescope git_status<cr>") -- list current changes per file with diff preview ["gs" for git status]
+
+-- curlman (API client) — see lua/rh/curlman/README.md
+keymap.set("n", "<leader>ap", "<cmd>Curlman<cr>")        -- pick & send a request
+keymap.set("n", "<leader>ar", "<cmd>CurlmanRun<cr>")     -- re-send last request
+keymap.set("n", "<leader>ae", "<cmd>CurlmanEnv<cr>")     -- choose environment
+keymap.set("n", "<leader>al", "<cmd>CurlmanLoad<cr>")    -- load a collection file
+keymap.set("n", "<leader>ai", "<cmd>CurlmanInfo<cr>")    -- response info (timing/headers)
+keymap.set("n", "<leader>ad", "<cmd>CurlmanDiff<cr>")    -- diff last two responses
+keymap.set("n", "<leader>ah", "<cmd>CurlmanHistory<cr>") -- browse response history
+keymap.set("n", "<leader>as", "<cmd>CurlmanSave<cr>")    -- save current response
