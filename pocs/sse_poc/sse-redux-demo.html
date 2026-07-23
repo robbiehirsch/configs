@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SSE → Redux subscription demo</title>
+<!-- Libraries load from a CDN with automatic fallbacks (unpkg → jsdelivr → cdnjs)
+     so one CDN being blocked/down doesn't blank the page. -->
+<script>
+  window.__loadWithFallback = function (sources, globalName, done) {
+    var i = 0;
+    (function tryNext() {
+      if (i >= sources.length) { done(new Error("all CDNs failed for " + globalName)); return; }
+      var s = document.createElement("script");
+      s.src = sources[i++];
+      s.crossOrigin = "anonymous";
+      s.onload = function () { done(null); };
+      s.onerror = tryNext;
+      document.head.appendChild(s);
+    })();
+  };
+</script>
+<script>
+  (function () {
+    // Load SEQUENTIALLY: React must be defined before ReactDOM evaluates.
+    var libs = [
+      ["https://unpkg.com/react@18/umd/react.production.min.js",
+       "https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js",
+       "https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"],
+      ["https://unpkg.com/react-dom@18/umd/react-dom.production.min.js",
+       "https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js",
+       "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"]
+    ];
+    function loadAll(i) {
+      if (i >= libs.length) { window.__APP(); return; }
+      window.__loadWithFallback(libs[i], "lib" + i, function (err) {
+        if (err) { document.getElementById("boot-error").style.display = "block"; return; }
+        loadAll(i + 1);
+      });
+    }
+    loadAll(0);
+  })();
+</script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #eef1f5;
+    color: #1c2024;
+  }
+  .layout { display: flex; align-items: flex-start; min-height: 100vh; }
+  .app { flex: 1; padding: 22px 26px 60px; max-width: 900px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #5a6472; font-size: 13px; margin: 0 0 18px; line-height: 1.5; }
+
+  /* cards */
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .card {
+    background: #fff; border: 1px solid #e2e6ec; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 14px; position: relative; flex: 1; min-width: 200px;
+    box-shadow: 0 0 0 0 rgba(59,130,246,0);
+    transition: box-shadow .45s ease-out;
+  }
+  .card.rendered { box-shadow: 0 0 0 3px rgba(59,130,246,.6); }
+  .card h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #7a8494; }
+  .big { font-size: 24px; font-weight: 650; }
+  .meter {
+    position: absolute; top: 10px; right: 12px; font-size: 10.5px;
+    color: #93a0b0; background: #f0f3f7; border-radius: 20px; padding: 2px 8px; font-variant-numeric: tabular-nums;
+  }
+  .badge { display: inline-block; background: #f5c542; color: #4a3800; font-weight: 700;
+           font-size: 12px; letter-spacing: .05em; padding: 3px 10px; border-radius: 20px; }
+  .badge.off { background: #e6e9ee; color: #9aa4b2; }
+
+  /* table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eef1f5; }
+  th { color: #7a8494; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  tr.flash td { animation: flashRow 1.1s ease-out; }
+  @keyframes flashRow { from { background: #b7f0c6; } to { background: transparent; } }
+
+  /* controls */
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 4px 0 20px; }
+  button.ctl {
+    border: 1px solid #cdd4de; background: #fff; color: #1c2024; border-radius: 8px;
+    padding: 7px 11px; font-size: 12.5px; cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  button.ctl:hover { background: #f3f6fa; border-color: #b4bdc9; }
+  button.ctl.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  button.ctl.primary:hover { background: #1d4fd0; }
+  button.ctl.warn { border-color: #e6b8b8; color: #a12c2c; }
+  .speed { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5a6472; }
+
+  /* toasts */
+  .toast-stack {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 8px; align-items: center; z-index: 60;
+  }
+  .toast {
+    padding: 10px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 550; color: #fff;
+    box-shadow: 0 8px 24px rgba(20,25,35,.22); animation: slideIn .25s ease-out; min-width: 220px; text-align: center;
+  }
+  .toast.info { background: #2563eb; }
+  .toast.success { background: #17924a; }
+  .toast.warn { background: #c23636; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+  /* devtools drawer */
+  .drawer {
+    width: 400px; align-self: stretch; background: #0f1218; color: #c8d2e0;
+    display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+    border-left: 1px solid #000; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .drawer-head { display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid #222833; gap: 8px; }
+  .drawer-head b { font-size: 12px; letter-spacing: .05em; color: #8fa0b6; font-family: ui-sans-serif, system-ui; }
+  .tabs { display: flex; gap: 4px; margin-left: auto; }
+  .tab { border: none; background: #1a1f28; color: #9aa8bc; font-size: 11px; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+  .tab.active { background: #2b62e0; color: #fff; }
+  .drawer-body { overflow-y: auto; flex: 1; padding: 8px 10px; font-size: 11.5px; line-height: 1.5; }
+  .logitem { padding: 6px 8px; border-radius: 6px; margin-bottom: 5px; background: #161b23; border: 1px solid #1e242e; }
+  .logitem .ts { color: #5f6b7d; font-size: 10px; }
+  .atype { font-weight: 700; }
+  .atype.ent { color: #f0b64a; }
+  .atype.kv { color: #b98bff; }
+  .atype.tab { color: #4fcf7d; }
+  .payload { color: #9fd0ff; white-space: pre-wrap; word-break: break-word; }
+  .raw { color: #9aa8bc; white-space: pre-wrap; word-break: break-word; }
+  .statekey { color: #8fa0b6; }
+  .state-slice { margin-bottom: 12px; }
+  .state-slice pre { margin: 4px 0 0; color: #cfe0f2; white-space: pre-wrap; word-break: break-word; }
+  .empty { color: #5f6b7d; padding: 10px 4px; }
+
+  /* devtools accordion */
+  .drawer-scroll { flex: 1; overflow-y: auto; }
+  .acc { border-bottom: 1px solid #222833; }
+  .acc-head {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer;
+    user-select: none; background: #141922; position: sticky; top: 0; z-index: 1;
+  }
+  .acc-head:hover { background: #182029; }
+  .acc-head .chev { color: #6b7787; font-size: 10px; transition: transform .15s; }
+  .acc-head.closed .chev { transform: rotate(-90deg); }
+  .acc-title { font-family: ui-sans-serif, system-ui; font-size: 11px; letter-spacing: .05em;
+               color: #8fa0b6; text-transform: uppercase; }
+  .acc-count { margin-left: auto; font-size: 10px; color: #6b7787; background: #1b212b;
+               padding: 1px 8px; border-radius: 20px; }
+  .acc-body { max-height: 30vh; overflow-y: auto; padding: 8px 10px; }
+
+  /* devtools diff view */
+  .difftoggle { background: #1b212b; color: #9aa8bc; border: 1px solid #2b3341; border-radius: 6px;
+                font-size: 10px; padding: 3px 10px; cursor: pointer; margin-bottom: 10px;
+                font-family: ui-sans-serif, system-ui; letter-spacing: .05em; }
+  .difftoggle.on { background: #2b62e0; color: #fff; border-color: #2b62e0; }
+  .sfields { margin-top: 4px; }
+  .sfield { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+  .skey { color: #8fa0b6; min-width: 96px; flex-shrink: 0; }
+  .sval { color: #cfe0f2; word-break: break-word; }
+  .sdiff { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .dold { background: rgba(194,54,54,.22); color: #ffb0b0; text-decoration: line-through;
+          padding: 1px 6px; border-radius: 4px; }
+  .dnew { background: rgba(23,146,74,.30); color: #8ff0b0; padding: 1px 6px; border-radius: 4px; }
+  .darrow { color: #6b7787; }
+  .drawer-toggle {
+    position: fixed; top: 14px; right: 14px; z-index: 60;
+    background: #0f1218; color: #c8d2e0; border: 1px solid #2b3341; border-radius: 8px;
+    padding: 8px 12px; font-size: 12px; cursor: pointer;
+  }
+  .hint { font-size: 11px; color: #93a0b0; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="boot-error" style="display:none; padding:24px; font-family:system-ui; color:#a12c2c;">
+  Couldn’t load React from any CDN. If you’re on a restricted network, open this file on a
+  machine with internet access, or tell me and I’ll build a version with the libraries inlined.
+</div>
+
+<script>
+window.__APP = function () {
+"use strict";
+const { useState, useEffect, useRef, useContext, createContext, useMemo, useCallback, useSyncExternalStore } = React;
+/* ═══════════════════════════════════════════════════════════════════
+   1. EVENT BUS  (type -> Set<fn>; on() returns an unsubscribe)
+   ═══════════════════════════════════════════════════════════════════ */
+function createEventBus() {
+    const listeners = new Map();
+    return {
+        on(type, fn) {
+            if (!listeners.has(type))
+                listeners.set(type, new Set());
+            listeners.get(type).add(fn);
+            return () => { var _a; return (_a = listeners.get(type)) === null || _a === void 0 ? void 0 : _a.delete(fn); };
+        },
+        emit(type, payload) {
+            var _a;
+            (_a = listeners.get(type)) === null || _a === void 0 ? void 0 : _a.forEach((fn) => { try {
+                fn(payload);
+            }
+            catch (e) {
+                console.error(e);
+            } });
+        },
+    };
+}
+/* ═══════════════════════════════════════════════════════════════════
+   2. SLICES + WIRE VOCABULARY
+   ═══════════════════════════════════════════════════════════════════ */
+const initialState = {
+    entitlements: { pro: false, seats: null },
+    kv: { theme: "default" },
+    table: { rows: [] },
+};
+function rootReducer(state, action) {
+    switch (action.type) {
+        case "entitlements/updated":
+            return { ...state, entitlements: { ...state.entitlements, ...action.payload } };
+        case "kv/updated":
+            return { ...state, kv: { ...state.kv, ...action.payload } };
+        case "table/rowsAppended":
+            return { ...state, table: { rows: [...state.table.rows, ...action.payload] } };
+        default:
+            return state;
+    }
+}
+const entitlementsUpdated = (payload) => ({ type: "entitlements/updated", payload });
+const kvUpdated = (payload) => ({ type: "kv/updated", payload });
+const rowsAppended = (payload) => ({ type: "table/rowsAppended", payload });
+// wire "type" -> action creator. Unknown types are silently ignored.
+const HANDLERS = { entitlement: entitlementsUpdated, kv: kvUpdated, rows: rowsAppended };
+function actionsFor(deltas) {
+    return deltas.map((d) => { var _a; return (_a = HANDLERS[d.type]) === null || _a === void 0 ? void 0 : _a.call(HANDLERS, d.payload); }).filter(Boolean);
+}
+/* ═══════════════════════════════════════════════════════════════════
+   3. INSTRUMENTED STORE  (redux-ish + records action & stream logs)
+   ═══════════════════════════════════════════════════════════════════ */
+function createInstrumentedStore(reducer, initial) {
+    let state = initial;
+    let diffBaseline = initial; // state snapshot taken at the start of each frame
+    let version = 0;
+    const subs = new Set();
+    const actionLog = [];
+    const streamLog = [];
+    let seq = 0;
+    const notify = () => { version++; subs.forEach((f) => f()); };
+    return {
+        getState: () => state,
+        getVersion: () => version,
+        getActionLog: () => actionLog,
+        getStreamLog: () => streamLog,
+        getDiffBaseline: () => diffBaseline,
+        subscribe(f) { subs.add(f); return () => subs.delete(f); },
+        dispatch(action) {
+            state = reducer(state, action);
+            actionLog.unshift({ id: ++seq, action, ts: Date.now() });
+            if (actionLog.length > 60)
+                actionLog.pop();
+            notify();
+            return action;
+        },
+        logStream(raw) {
+            // capture state BEFORE this frame's dispatches so the diff shows the whole frame's change
+            diffBaseline = state;
+            streamLog.unshift({ id: ++seq, raw, ts: Date.now() });
+            if (streamLog.length > 60)
+                streamLog.pop();
+            notify();
+        },
+    };
+}
+/* ═══════════════════════════════════════════════════════════════════
+   4. MINIMAL react-redux  (Provider + useSelector + useDispatch)
+      useSelector re-renders ONLY when the selected value changes.
+   ═══════════════════════════════════════════════════════════════════ */
+const StoreContext = createContext(null);
+function useSelector(selector) {
+    const store = useContext(StoreContext);
+    return useSyncExternalStore(store.subscribe, () => selector(store.getState()));
+}
+function useDispatch() { return useContext(StoreContext).dispatch; }
+// Devtools panel re-renders on ANY change, so it watches the version counter.
+function useStoreVersion() {
+    const store = useContext(StoreContext);
+    return useSyncExternalStore(store.subscribe, store.getVersion);
+}
+/* ═══════════════════════════════════════════════════════════════════
+   5. SSE PROVIDER  — one connection: dispatch to store AND emit to bus.
+      (Here the "connection" is simulated; in prod: new EventSource(url).)
+   ═══════════════════════════════════════════════════════════════════ */
+const BusContext = createContext(null);
+function SSEProvider({ connection, children }) {
+    const store = useContext(StoreContext);
+    const bus = useMemo(() => createEventBus(), []);
+    useEffect(() => {
+        connection.onmessage = (e) => {
+            store.logStream(e.data);
+            let msg;
+            try {
+                msg = JSON.parse(e.data);
+            }
+            catch {
+                return;
+            }
+            const deltas = Array.isArray(msg) ? msg : [msg];
+            actionsFor(deltas).forEach(store.dispatch); // STATE
+            deltas.forEach((d) => bus.emit(d.type, d.payload)); // EVENTS
+        };
+        return () => connection.close();
+    }, [connection, store, bus]);
+    return React.createElement(BusContext.Provider, { value: bus }, children);
+}
+function useSSEEvent(type, handler) {
+    const bus = useContext(BusContext);
+    const ref = useRef(handler);
+    ref.current = handler;
+    useEffect(() => bus.on(type, (p) => ref.current(p)), [bus, type]);
+}
+/* ═══════════════════════════════════════════════════════════════════
+   6. TOASTS
+   ═══════════════════════════════════════════════════════════════════ */
+const ToastContext = createContext(null);
+function ToastProvider({ children }) {
+    const [toasts, setToasts] = useState([]);
+    const push = useCallback((msg, tone = "info") => {
+        const id = Math.random().toString(36).slice(2);
+        setToasts((t) => [...t, { id, msg, tone }]);
+        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3800);
+    }, []);
+    return (React.createElement(ToastContext.Provider, { value: push },
+        children,
+        React.createElement("div", { className: "toast-stack" }, toasts.map((t) => React.createElement("div", { key: t.id, className: "toast " + t.tone }, t.msg)))));
+}
+const useToast = () => useContext(ToastContext);
+/* small helper: flash the card + count renders so selective re-rendering is visible */
+function useRenderMeter() {
+    const ref = useRef(null);
+    const count = useRef(0);
+    count.current++;
+    useEffect(() => {
+        const el = ref.current;
+        if (!el)
+            return;
+        el.classList.add("rendered");
+        const t = setTimeout(() => el.classList.remove("rendered"), 450);
+        return () => clearTimeout(t);
+    });
+    return [ref, count.current];
+}
+/* ═══════════════════════════════════════════════════════════════════
+   7. COMPONENTS — each subscribes to different things
+   ═══════════════════════════════════════════════════════════════════ */
+// STATE only. Driven by: {"type":"entitlement","payload":{"pro":true}}
+function ProBadge() {
+    const pro = useSelector((s) => s.entitlements.pro);
+    const [ref, n] = useRenderMeter();
+    return (React.createElement("div", { className: "card", ref: ref },
+        React.createElement("span", { className: "meter" },
+            "rendered \u00D7",
+            n),
+        React.createElement("h3", null, "ProBadge \u2014 entitlements.pro"),
+        pro ? React.createElement("span", { className: "badge" }, "PRO") : React.createElement("span", { className: "badge off" }, "FREE")));
+}
+// STATE only. Driven by: {"type":"entitlement","payload":{"seats":7}}
+function SeatCounter() {
+    const seats = useSelector((s) => s.entitlements.seats);
+    const [ref, n] = useRenderMeter();
+    return (React.createElement("div", { className: "card", ref: ref },
+        React.createElement("span", { className: "meter" },
+            "rendered \u00D7",
+            n),
+        React.createElement("h3", null, "SeatCounter \u2014 entitlements.seats"),
+        React.createElement("div", { className: "big" }, seats !== null && seats !== void 0 ? seats : "—")));
+}
+// STATE only. Driven by: {"type":"kv","payload":{"theme":"dark"}}
+function ThemeIndicator() {
+    const theme = useSelector((s) => s.kv.theme);
+    const [ref, n] = useRenderMeter();
+    return (React.createElement("div", { className: "card", ref: ref },
+        React.createElement("span", { className: "meter" },
+            "rendered \u00D7",
+            n),
+        React.createElement("h3", null, "ThemeIndicator \u2014 kv.theme"),
+        React.createElement("div", { className: "big" }, theme)));
+}
+// STATE + EVENT. Driven by: {"type":"rows","payload":[{"id":88,"name":"Acme"}]}
+function DataTable() {
+    const rows = useSelector((s) => s.table.rows);
+    const [ref, n] = useRenderMeter();
+    const [flash, setFlash] = useState(new Set());
+    useSSEEvent("rows", (newRows) => {
+        setFlash(new Set(newRows.map((r) => r.id))); // flash exactly the arrivals
+        setTimeout(() => setFlash(new Set()), 1100);
+    });
+    const shown = rows.slice(-12).reverse();
+    return (React.createElement("div", { className: "card", ref: ref },
+        React.createElement("span", { className: "meter" },
+            "rendered \u00D7",
+            n),
+        React.createElement("h3", null,
+            "DataTable \u2014 table.rows (",
+            rows.length,
+            " total)"),
+        React.createElement("table", null,
+            React.createElement("thead", null,
+                React.createElement("tr", null,
+                    React.createElement("th", null, "ID"),
+                    React.createElement("th", null, "Name"))),
+            React.createElement("tbody", null, shown.length === 0
+                ? React.createElement("tr", null,
+                    React.createElement("td", { colSpan: "2", style: { color: "#9aa4b2" } }, "no rows yet"))
+                : shown.map((r) => (React.createElement("tr", { key: r.id, className: flash.has(r.id) ? "flash" : "" },
+                    React.createElement("td", null, r.id),
+                    React.createElement("td", null, r.name))))))));
+}
+// PURE SIDE-EFFECT. Renders nothing; toasts on a SUBSET of events.
+function NotificationWatcher() {
+    const toast = useToast();
+    // entitlement → toast, but only grant/revoke (a seats-only frame is silent)
+    useSSEEvent("entitlement", (e) => {
+        if (e.pro === false)
+            toast("Your Pro access was revoked", "warn");
+        else if (e.pro === true)
+            toast("Pro features unlocked 🎉", "success");
+    });
+    // rows → toast ONLY for large batches; small appends stay quiet
+    useSSEEvent("rows", (rows) => {
+        if (rows.length >= 10)
+            toast(rows.length + " new records loaded", "info");
+    });
+    // NO listener for "kv" → theme changes update state but never toast.
+    return null;
+}
+/* ═══════════════════════════════════════════════════════════════════
+   8. DEVTOOLS DRAWER
+   ═══════════════════════════════════════════════════════════════════ */
+const sliceClass = (t) => t.startsWith("entitlements") ? "ent" : t.startsWith("kv") ? "kv" : "tab";
+const time = (ts) => new Date(ts).toLocaleTimeString([], { hour12: false }) + "." + String(ts % 1000).padStart(3, "0");
+function AccSection({ id, title, count, open, toggle, children }) {
+    return (React.createElement("div", { className: "acc" },
+        React.createElement("div", { className: "acc-head" + (open ? "" : " closed"), onClick: () => toggle(id) },
+            React.createElement("span", { className: "chev" }, "\u25BC"),
+            React.createElement("span", { className: "acc-title" }, title),
+            React.createElement("span", { className: "acc-count" }, count)),
+        open && React.createElement("div", { className: "acc-body" }, children)));
+}
+const fmt = (v) => v === undefined ? "undefined" : typeof v === "object" ? JSON.stringify(v) : String(v);
+// one field row; when diff is on and the value changed, show old (red) → new (green)
+function StateField({ label, oldV, curV, diff }) {
+    const changed = diff && JSON.stringify(oldV) !== JSON.stringify(curV);
+    return (React.createElement("div", { className: "sfield" },
+        React.createElement("span", { className: "skey" }, label),
+        changed ? (React.createElement("span", { className: "sdiff" },
+            React.createElement("span", { className: "dold" }, fmt(oldV)),
+            React.createElement("span", { className: "darrow" }, "\u2192"),
+            React.createElement("span", { className: "dnew" }, fmt(curV)))) : (React.createElement("span", { className: "sval" }, fmt(curV)))));
+}
+function ObjFields({ prev, cur, diff }) {
+    const keys = Array.from(new Set([...Object.keys(prev || {}), ...Object.keys(cur || {})]));
+    return keys.map((k) => (React.createElement(StateField, { key: k, label: k, oldV: prev === null || prev === void 0 ? void 0 : prev[k], curV: cur === null || cur === void 0 ? void 0 : cur[k], diff: diff })));
+}
+function StateView({ state, prev }) {
+    const [diff, setDiff] = useState(false);
+    return (React.createElement("div", null,
+        React.createElement("button", { className: "difftoggle" + (diff ? " on" : ""), onClick: () => setDiff((d) => !d) },
+            "diff ",
+            diff ? "ON" : "OFF"),
+        React.createElement("div", { className: "state-slice" },
+            React.createElement("span", { className: "statekey" }, "entitlements"),
+            React.createElement("div", { className: "sfields" },
+                React.createElement(ObjFields, { prev: prev.entitlements, cur: state.entitlements, diff: diff }))),
+        React.createElement("div", { className: "state-slice" },
+            React.createElement("span", { className: "statekey" }, "kv"),
+            React.createElement("div", { className: "sfields" },
+                React.createElement(ObjFields, { prev: prev.kv, cur: state.kv, diff: diff }))),
+        React.createElement("div", { className: "state-slice" },
+            React.createElement("span", { className: "statekey" }, "table"),
+            React.createElement("div", { className: "sfields" },
+                React.createElement(StateField, { label: "rows.length", oldV: prev.table.rows.length, curV: state.table.rows.length, diff: diff }),
+                React.createElement(StateField, { label: "last row", oldV: prev.table.rows.slice(-1)[0], curV: state.table.rows.slice(-1)[0], diff: diff })))));
+}
+function DevTools({ open, setOpen }) {
+    const store = useContext(StoreContext);
+    useStoreVersion(); // re-render on any dispatch or stream frame
+    // all three sections open by default so you can watch them at once
+    const [sections, setSections] = useState({ stream: true, actions: true, state: true });
+    const toggle = (id) => setSections((s) => ({ ...s, [id]: !s[id] }));
+    if (!open)
+        return null;
+    const state = store.getState();
+    const actions = store.getActionLog();
+    const stream = store.getStreamLog();
+    return (React.createElement("aside", { className: "drawer" },
+        React.createElement("div", { className: "drawer-head" },
+            React.createElement("b", null, "DEVTOOLS"),
+            React.createElement("button", { className: "tab", style: { marginLeft: "auto" }, onClick: () => setOpen(false) }, "\u2715")),
+        React.createElement("div", { className: "drawer-scroll" },
+            React.createElement(AccSection, { id: "stream", title: "Stream", count: stream.length + " frames", open: sections.stream, toggle: toggle }, stream.length === 0
+                ? React.createElement("div", { className: "empty" }, "no frames received yet")
+                : stream.map((s) => (React.createElement("div", { key: s.id, className: "logitem" },
+                    React.createElement("div", { className: "ts" },
+                        time(s.ts),
+                        " \u00B7 SSE frame"),
+                    React.createElement("div", { className: "raw" }, s.raw))))),
+            React.createElement(AccSection, { id: "actions", title: "Actions", count: actions.length + " dispatched", open: sections.actions, toggle: toggle }, actions.length === 0
+                ? React.createElement("div", { className: "empty" }, "no actions dispatched yet")
+                : actions.map((a) => (React.createElement("div", { key: a.id, className: "logitem" },
+                    React.createElement("div", { className: "ts" }, time(a.ts)),
+                    React.createElement("div", null,
+                        React.createElement("span", { className: "atype " + sliceClass(a.action.type) }, a.action.type)),
+                    React.createElement("div", { className: "payload" }, JSON.stringify(a.action.payload)))))),
+            React.createElement(AccSection, { id: "state", title: "Store state", count: state.table.rows.length + " rows", open: sections.state, toggle: toggle },
+                React.createElement(StateView, { state: state, prev: store.getDiffBaseline() })))));
+}
+/* ═══════════════════════════════════════════════════════════════════
+   9. SIMULATED STREAM + CONTROLS
+   ═══════════════════════════════════════════════════════════════════ */
+function createSimulatedConnection() {
+    let handler = null;
+    return {
+        set onmessage(fn) { handler = fn; },
+        push(dataString) { if (handler)
+            handler({ data: dataString }); },
+        close() { handler = null; },
+    };
+}
+let rowSeq = 100;
+const NAMES = ["Acme", "Globex", "Initech", "Umbrella", "Hooli", "Stark", "Wayne",
+    "Wonka", "Cyberdyne", "Tyrell", "Soylent", "Aperture", "Massive Dyn.", "Vandelay", "Pied Piper"];
+const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const makeRows = (n) => Array.from({ length: n }, () => ({ id: ++rowSeq, name: rand(NAMES) }));
+const FRAMES = {
+    grant: () => ({ type: "entitlement", payload: { pro: true, seats: 5 } }),
+    revoke: () => ({ type: "entitlement", payload: { pro: false } }),
+    seats: () => ({ type: "entitlement", payload: { seats: 3 + Math.floor(Math.random() * 10) } }),
+    theme: () => ({ type: "kv", payload: { theme: rand(["dark", "light", "solarized", "contrast"]) } }),
+    smallRows: () => ({ type: "rows", payload: makeRows(1 + Math.floor(Math.random() * 2)) }),
+    bigBatch: () => ({ type: "rows", payload: makeRows(10 + Math.floor(Math.random() * 5)) }),
+    combo: () => ([{ type: "entitlement", payload: { pro: true } }, { type: "rows", payload: makeRows(2) }]),
+};
+const AUTO_POOL = ["smallRows", "smallRows", "seats", "theme", "smallRows", "revoke", "grant", "bigBatch", "combo", "theme", "seats"];
+function Controls({ connection }) {
+    const [playing, setPlaying] = useState(false);
+    const [interval, setIntervalMs] = useState(1400);
+    const send = (key) => connection.push(JSON.stringify(FRAMES[key]()));
+    useEffect(() => {
+        if (!playing)
+            return;
+        const id = setInterval(() => send(rand(AUTO_POOL)), interval);
+        return () => clearInterval(id);
+    }, [playing, interval]);
+    return (React.createElement("div", { className: "controls" },
+        React.createElement("button", { className: "ctl " + (playing ? "warn" : "primary"), onClick: () => setPlaying((p) => !p) }, playing ? "⏸ Pause stream" : "▶ Play stream"),
+        React.createElement("button", { className: "ctl", onClick: () => send("grant") }, "Grant Pro"),
+        React.createElement("button", { className: "ctl", onClick: () => send("revoke") }, "Revoke Pro"),
+        React.createElement("button", { className: "ctl", onClick: () => send("seats") }, "Change seats"),
+        React.createElement("button", { className: "ctl", onClick: () => send("theme") }, "Change theme"),
+        React.createElement("button", { className: "ctl", onClick: () => send("smallRows") }, "Add row"),
+        React.createElement("button", { className: "ctl", onClick: () => send("bigBatch") }, "Add 10+ rows"),
+        React.createElement("button", { className: "ctl", onClick: () => send("combo") }, "Combo frame"),
+        React.createElement("span", { className: "speed" },
+            "slow",
+            React.createElement("input", { type: "range", min: "400", max: "2600", step: "200", value: 3000 - interval, onChange: (e) => setIntervalMs(3000 - Number(e.target.value)) }),
+            "fast")));
+}
+/* ═══════════════════════════════════════════════════════════════════
+   10. APP
+   ═══════════════════════════════════════════════════════════════════ */
+function App() {
+    const store = useMemo(() => createInstrumentedStore(rootReducer, initialState), []);
+    const connection = useMemo(() => createSimulatedConnection(), []);
+    const [drawerOpen, setDrawerOpen] = useState(true);
+    return (React.createElement(StoreContext.Provider, { value: store },
+        React.createElement(ToastProvider, null,
+            React.createElement(SSEProvider, { connection: connection },
+                React.createElement("div", { className: "layout" },
+                    React.createElement("div", { className: "app" },
+                        React.createElement("h1", null, "SSE \u2192 Redux subscription demo"),
+                        React.createElement("p", { className: "sub" },
+                            "One simulated SSE connection fans out to the store ",
+                            React.createElement("b", null, "and"),
+                            " an event bus. Watch the blue outline flash on ",
+                            React.createElement("i", null, "only"),
+                            " the components whose slice changed, the table flash new rows, and toasts fire on a ",
+                            React.createElement("b", null, "subset"),
+                            " of events (Pro grant/revoke and 10+ row batches \u2014 theme & seat changes stay silent). Every frame, dispatch, and the live store show up in DevTools \u2192"),
+                        React.createElement(Controls, { connection: connection }),
+                        React.createElement("div", { className: "row" },
+                            React.createElement(ProBadge, null),
+                            React.createElement(SeatCounter, null),
+                            React.createElement(ThemeIndicator, null)),
+                        React.createElement(DataTable, null),
+                        React.createElement(NotificationWatcher, null),
+                        React.createElement("p", { className: "hint" },
+                            "Tip: click \u201CChange theme\u201D \u2014 ThemeIndicator re-renders, but ProBadge / SeatCounter / DataTable do ",
+                            React.createElement("b", null, "not"),
+                            ", and no toast appears. That\u2019s selective subscription + the toast subset, visible at once.")),
+                    React.createElement(DevTools, { open: drawerOpen, setOpen: setDrawerOpen }),
+                    !drawerOpen && (React.createElement("button", { className: "drawer-toggle", onClick: () => setDrawerOpen(true) }, "\u2039 DevTools")))))));
+}
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
+
+};
+</script>
+</body>
+</html>
