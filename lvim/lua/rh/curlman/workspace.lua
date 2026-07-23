@@ -61,15 +61,17 @@ end
 --- All variables in play for a config: its declared vars + the active
 --- environment's vars + any in-memory overrides, each shown with its EFFECTIVE
 --- value (override > env > collection) and where that value comes from.
-local function build_vars_view(col, env_map)
+local function build_vars_view(col, env_map, referenced)
   env_map = env_map or {}
+  referenced = referenced or {}
   local order, seen = {}, {}
   local function push(k) if not seen[k] then seen[k] = true; order[#order + 1] = k end end
   for _, v in ipairs(col.vars or {}) do push(v.key) end
-  -- remaining keys (env + overrides), sorted for stable order
+  -- remaining keys (env + overrides + referenced-but-undefined), sorted
   local rest = {}
   for k in pairs(env_map) do if not seen[k] then rest[k] = true end end
   if col.overrides then for k in pairs(col.overrides) do if not seen[k] then rest[k] = true end end end
+  for k in pairs(referenced) do if not seen[k] then rest[k] = true end end
   local restlist = {}
   for k in pairs(rest) do restlist[#restlist + 1] = k end
   table.sort(restlist)
@@ -81,9 +83,12 @@ local function build_vars_view(col, env_map)
     local source, val
     if overridden then source, val = "override", col.overrides[key]
     elseif env_map[key] ~= nil then source, val = "env", env_map[key]
-    else source, val = "collection", (col.vars_map and col.vars_map[key]) or "" end
+    elseif col.vars_map and col.vars_map[key] ~= nil then source, val = "collection", col.vars_map[key]
+    else source, val = "ref", "" end -- referenced by a request but not defined anywhere
+    local disp = display_val(key, val)
+    if source == "ref" then disp = "(unset)" end
     out[#out + 1] = {
-      key = key, display_value = display_val(key, val),
+      key = key, display_value = disp,
       overridden = overridden, secret = is_secret(key), source = source,
     }
   end
@@ -101,7 +106,7 @@ function M.build_config_cards(state)
         source = col.source,
         env_name = state.current_env,
         expanded = state.config_expanded[name] ~= false, -- default expanded
-        vars = build_vars_view(col, env and env.map or {}),
+        vars = build_vars_view(col, env and env.map or {}, col.referenced),
         requests = col.requests or {},
       }
     end
@@ -176,7 +181,8 @@ function M.render_configs(cards)
         vs.add(" = ", "CurlmanDim")
         vs.add(v.display_value, v.overridden and "CurlmanOverride" or "CurlmanDim")
         if v.source == "env" then vs.add("   ·env", "CurlmanDim")
-        elseif v.source == "override" then vs.add("   ·set", "CurlmanDim") end
+        elseif v.source == "override" then vs.add("   ·set", "CurlmanDim")
+        elseif v.source == "ref" then vs.add("   ·needs value", "CurlmanOverride") end
         local vl, vsp = vs.done(); push(vl, vsp, { kind = "var", config = c.name, key = v.key })
       end
       for _, r in ipairs(c.requests) do

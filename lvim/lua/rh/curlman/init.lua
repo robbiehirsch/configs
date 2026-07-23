@@ -58,6 +58,9 @@ function M.load_collection(path)
   -- preserve overrides if reloading a config of the same name
   local prev = M.state.collections[col.name]
   col.overrides = (prev and prev.overrides) or {}
+  -- every {{variable}} the requests reference (so the panel can list them all)
+  col.referenced = {}
+  for _, r in ipairs(col.requests) do vars.referenced_request(r, col.referenced) end
   if not M.state.collections[col.name] then
     M.state.config_order[#M.state.config_order + 1] = col.name
   end

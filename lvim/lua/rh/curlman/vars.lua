@@ -172,6 +172,43 @@ function M.resolve_request(req, ctx)
   return out, uniq
 end
 
-M._internal = { uuid4 = uuid4, dynamic = dynamic, lookup = lookup }
+--- Collect {{variable}} names referenced in a string (skips dynamic {{$...}}).
+local function collect_refs(s, set)
+  if type(s) ~= "string" then return end
+  for name in s:gmatch("{{%s*([^{}]-)%s*}}") do
+    name = (name:gsub("^%s+", ""):gsub("%s+$", ""))
+    if name ~= "" and name:sub(1, 1) ~= "$" then set[name] = true end
+  end
+end
+
+--- Every variable name a (normalized) request references, as a set.
+function M.referenced_request(req, set)
+  set = set or {}
+  collect_refs(req.url, set)
+  for _, h in ipairs(req.headers or {}) do
+    collect_refs(h.key, set); collect_refs(h.value, set)
+  end
+  if req.auth then
+    for _, v in pairs(req.auth.params or {}) do collect_refs(tostring(v), set) end
+  end
+  local b = req.body
+  if b then
+    if b.mode == "raw" then
+      collect_refs(b.raw, set)
+    elseif b.mode == "urlencoded" or b.mode == "formdata" then
+      for _, p in ipairs(b.params or {}) do
+        collect_refs(p.key, set); collect_refs(p.value, set)
+        if p.src then collect_refs(p.src, set) end
+      end
+    elseif b.mode == "graphql" then
+      collect_refs(b.query, set); collect_refs(b.variables, set)
+    elseif b.mode == "file" then
+      collect_refs(b.src, set)
+    end
+  end
+  return set
+end
+
+M._internal = { uuid4 = uuid4, dynamic = dynamic, lookup = lookup, collect_refs = collect_refs }
 
 return M
