@@ -76,9 +76,11 @@ require("rh.curlman").setup({
   -- environment = "~/apis/work.postman_environment.json",
   -- For self-signed / corporate certs: curl = { insecure = true },
 })
--- Keymaps under <leader>C  (<leader>a is taken by your AWS creds paste)
-lvim.builtin.which_key.mappings["C"] = {
+-- <leader>u opens the dashboard directly; <leader>r opens the curlman menu
+lvim.builtin.which_key.mappings["u"] = { "<cmd>CurlmanUI<cr>", "Curlman dashboard" }
+lvim.builtin.which_key.mappings["r"] = {
   name = "Curlman (API)",
+  u = { "<cmd>CurlmanUI<cr>", "Workspace (dashboard)" },
   p = { "<cmd>Curlman<cr>", "Pick & send request" },
   r = { "<cmd>CurlmanRun<cr>", "Re-send last request" },
   e = { "<cmd>CurlmanEnv<cr>", "Choose environment" },
@@ -87,13 +89,24 @@ lvim.builtin.which_key.mappings["C"] = {
   d = { "<cmd>CurlmanDiff<cr>", "Diff last two" },
   h = { "<cmd>CurlmanHistory<cr>", "History" },
   s = { "<cmd>CurlmanSave<cr>", "Save response" },
+  f = { "<cmd>Telescope curlman requests<cr>", "Find request (Telescope)" },
+  H = { "<cmd>Telescope curlman history<cr>", "History search (Telescope)" },
 }
+
+-- Route vim.ui.select through Telescope, and load the curlman Telescope extension
+lvim.builtin.telescope.on_config_done = function(telescope)
+  pcall(telescope.load_extension, "ui-select")
+  pcall(telescope.load_extension, "curlman")
+end
 
 -- Load templ configuration
 -- require('setup-templ').config()
 
 -- plugins
 lvim.plugins = {
+    {
+        "nvim-telescope/telescope-ui-select.nvim"
+    },
     {
         "tpope/vim-surround"
     },

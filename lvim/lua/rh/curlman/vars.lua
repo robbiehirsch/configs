@@ -41,11 +41,13 @@ local function dynamic(name)
 end
 
 --- Look a single key up across all sources in priority order.
--- ctx = { session, secrets, env, collection, allow_shell, shell_prefix }
+-- ctx = { overrides, session, secrets, env, collection, allow_shell, shell_prefix }
 local function lookup(key, ctx)
   if key:sub(1, 1) == "$" then
     return dynamic(key)
   end
+  -- in-memory per-config overrides win over everything (the "what-if" tweak)
+  if ctx.overrides and ctx.overrides[key] ~= nil then return tostring(ctx.overrides[key]) end
   if ctx.session and ctx.session[key] ~= nil then return tostring(ctx.session[key]) end
   if ctx.secrets and ctx.secrets[key] ~= nil then return tostring(ctx.secrets[key]) end
   if ctx.allow_shell then
