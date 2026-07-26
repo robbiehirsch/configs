@@ -73,12 +73,18 @@ M.extras = {
   -- 12. sidekick.nvim — Copilot "next edit suggestions" (multi-line refactors),
   --     plus a tmux-backed pane for AI CLIs. OFF by default: needs a Copilot
   --     subscription and `npm i -g @github/copilot-language-server`.
-  sidekick = false,
+  sidekick = true,
+
+  -- 13. neovim-project — project switching INSIDE nvim. <leader>fp lists your
+  --     projects; picking one changes cwd AND restores that project's session
+  --     (buffers, tabs, layout). Complements the tmux sessionizer: tmux for
+  --     one-session-per-project, this for hopping within a single nvim.
+  projects = true,
 
   -- Bonus, off by default — see EXTRAS.md.
-  harpoon = false,  -- <leader>1..4 jump to pinned files. Overlaps your pinboard.nvim.
-  neogit = false,   -- magit-style git UI. You may prefer lazygit in a tmux pane.
-  codediff = false, -- VSCode-style side-by-side diff + merge tool.
+  harpoon = true,  -- <leader>1..4 jump to pinned files. Overlaps your pinboard.nvim.
+  neogit = true,   -- magit-style git UI. You may prefer lazygit in a tmux pane.
+  codediff = true, -- VSCode-style side-by-side diff + merge tool.
 }
 
 -- Format on save. Set false if you'd rather hit <leader>lf yourself.

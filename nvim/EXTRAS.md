@@ -214,6 +214,22 @@ Worth knowing regardless: **Neovim 0.12 has `vim.lsp.inline_completion` built
 in**, so Copilot ghost text now needs zero plugins — just an `lsp/copilot.lua`
 and two keymaps.
 
+## 13. Projects inside nvim — `neovim-project`
+
+`<leader>fp` opens a picker over your project roots (`~/code/*`, `~/configs`).
+Picking one saves the current project's session and restores the target's —
+buffers, tabs, and window layout come back exactly as you left them.
+`<leader>fP` lists recently-opened projects instead.
+
+How it relates to the tmux sessionizer: same idea, different level. tmux gives
+each project its own terminal world (panes, shells, one nvim per project);
+this gives one nvim the ability to hop between projects with full state. Use
+whichever fits the moment — they don't conflict. Pinboard follows either way,
+since it reloads on directory change.
+
+Project roots live in the spec in `extras.lua` — edit the `projects` list to
+add `~/work/*` or wherever else repos live.
+
 ---
 
 ## Bonus, all off by default
@@ -241,8 +257,8 @@ resolve conflicts in nvim rather than in a git GUI.
 - **`csqb`** — nvim-surround's `q` alias means "any kind of quote", so this
   swaps whatever quotes you're inside for parens, without caring which.
 - **`ih`** is a git hunk text object. `dih` discards a hunk, `vih` selects one.
-- **`]]` / `[[`** jump between references to the symbol under the cursor
-  (snacks `words`) — a cheap poor-man's "find usages" without leaving the file.
+- **`]]` / `[[`** jump to the next/previous struct or class (treesitter
+  textobjects) — pairs with `]m`/`[m` for functions.
 - **`<leader>lR`** renames the current file *and* updates every import.
 - **`<leader>.`** opens a scratch buffer scoped to the project.
 - **`<C-q>` in any telescope picker** sends all results to the quickfix list.

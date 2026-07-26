@@ -1,0 +1,295 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+* { box-sizing: border-box; }
+html { background: #1a1b26; }
+body {
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 12px; line-height: 1.5; color: #c0caf5;
+  margin: 0; padding: 14px 16px 24px;
+}
+h1 { font-size: 17px; color: #7aa2f7; margin: 0 0 2px; }
+body > p:first-of-type { color: #565f89; font-size: 10.5px; margin: 0 0 12px; }
+.cols { columns: 330px 2; column-gap: 22px; }
+h2 {
+  font-size: 12.5px; color: #7aa2f7; margin: 14px 0 4px;
+  padding-bottom: 3px; border-bottom: 1px solid #3b4261;
+  break-after: avoid;
+}
+h2:first-of-type { margin-top: 0; }
+hr { display: none; }
+p { margin: 4px 0 8px; color: #a9b1d6; }
+table { width: 100%; border-collapse: collapse; margin: 2px 0 10px; break-inside: avoid; }
+th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: .6px;
+     color: #565f89; padding: 2px 8px 3px 2px; border-bottom: 1px solid #3b4261; }
+td { padding: 3.5px 8px 3.5px 2px; border-bottom: 1px solid #24283b; vertical-align: top;
+     color: #a9b1d6; }
+td:first-child { white-space: nowrap; width: 36%; }
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px;
+  background: #24283b; border: 1px solid #3b4261; border-radius: 4px;
+  padding: 1px 5px; color: #c0caf5;
+}
+td:first-child code { background: #2f3450; border-color: #414868; color: #7dcfff; font-weight: 600; }
+strong { color: #e0e6ff; }
+ul { margin: 2px 0 10px; padding-left: 16px; color: #a9b1d6; }
+li { margin: 2px 0; }
+blockquote { margin: 6px 0; padding: 5px 12px; border-left: 3px solid #7aa2f7;
+  background: #1f2335; border-radius: 0 6px 6px 0; }
+::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background: #3b4261; border-radius: 4px; }
+</style></head><body><h1>tmux Reference</h1>
+<p><strong>Prefix = <code>Ctrl-Space</code></strong> · config: <code>~/configs/tmux/tmux.conf</code>
+Everything below marked <em>prefix</em> means: <code>Ctrl-Space</code>, release, then the key.</p><div class="cols">
+<hr />
+<h2>Projects &amp; Sessions</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>prefix <code>Ctrl-f</code></td>
+<td><strong>Sessionizer</strong> — fuzzy-pick any project dir, create-or-switch to its session</td>
+</tr>
+<tr>
+<td>prefix <code>Ctrl-j</code></td>
+<td>Fuzzy-switch among <em>running</em> sessions only</td>
+</tr>
+<tr>
+<td>prefix <code>s</code></td>
+<td>Session tree (visual browser, built-in)</td>
+</tr>
+<tr>
+<td>prefix <code>L</code></td>
+<td>Toggle to last session — great for A↔B ping-pong</td>
+</tr>
+<tr>
+<td>prefix <code>$</code></td>
+<td>Rename session</td>
+</tr>
+<tr>
+<td>prefix <code>d</code></td>
+<td>Detach (session keeps running)</td>
+</tr>
+<tr>
+<td>prefix <code>(</code> / <code>)</code></td>
+<td>Previous / next session</td>
+</tr>
+</tbody>
+</table>
+<p><code>tmux-sessionizer</code> also works from any shell prompt.</p>
+<h2>Persistence (resurrect + continuum)</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>prefix <code>Ctrl-s</code></td>
+<td>Save all sessions to disk (layouts, cwds, programs)</td>
+</tr>
+<tr>
+<td>prefix <code>Ctrl-r</code></td>
+<td>Restore saved sessions</td>
+</tr>
+<tr>
+<td>—</td>
+<td>continuum autosaves every 15 min and auto-restores when tmux starts, so reboots are survivable with zero keystrokes</td>
+</tr>
+</tbody>
+</table>
+<h2>Popups</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>prefix <code>g</code></td>
+<td><strong>Lazygit</strong> over the current pane's repo — close and nothing has moved</td>
+</tr>
+<tr>
+<td>prefix <code>Ctrl-t</code></td>
+<td>Scratch terminal (same session every time; same key inside dismisses)</td>
+</tr>
+<tr>
+<td>prefix <code>D</code></td>
+<td>TODO.md for this project (or personal todo)</td>
+</tr>
+</tbody>
+</table>
+<h2>Scrollback superpowers</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>prefix <code>Tab</code></td>
+<td><strong>extrakto</strong> — fzf-pick any token on screen (path, hash, URL, error) and insert it at your prompt</td>
+</tr>
+<tr>
+<td>prefix <code>u</code></td>
+<td><strong>fzf-url</strong> — pick any URL in scrollback, open in browser</td>
+</tr>
+<tr>
+<td>prefix <code>[</code></td>
+<td>Enter copy mode (vi keys)</td>
+</tr>
+<tr>
+<td><code>v</code> / <code>y</code> (copy mode)</td>
+<td>Begin selection / yank to system clipboard</td>
+</tr>
+<tr>
+<td>mouse drag</td>
+<td>Copies on release (tmux-yank)</td>
+</tr>
+<tr>
+<td>prefix <code>P</code></td>
+<td>Paste tmux buffer</td>
+</tr>
+</tbody>
+</table>
+<h2>Panes</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Ctrl-h/j/k/l</code></td>
+<td>Move between panes <strong>and nvim splits</strong> — no prefix (smart-splits)</td>
+</tr>
+<tr>
+<td><code>Alt-h</code> / <code>Alt-l</code></td>
+<td>Resize horizontally — no prefix, crosses nvim boundary too</td>
+</tr>
+<tr>
+<td><code>Alt-↑</code> / <code>Alt-↓</code></td>
+<td>Resize vertically — no prefix</td>
+</tr>
+<tr>
+<td>prefix <code>%</code> / <code>"</code></td>
+<td>Split right / below (opens in current directory)</td>
+</tr>
+<tr>
+<td>prefix <code>h/j/k/l</code></td>
+<td>Move between panes (prefixed variant)</td>
+</tr>
+<tr>
+<td>prefix <code>z</code></td>
+<td><strong>Zoom</strong> pane fullscreen (toggle)</td>
+</tr>
+<tr>
+<td>prefix <code>x</code></td>
+<td>Kill pane (confirms)</td>
+</tr>
+<tr>
+<td>prefix <code>!</code></td>
+<td>Break pane out into its own window</td>
+</tr>
+<tr>
+<td>prefix <code>{</code> / <code>}</code></td>
+<td>Swap pane left / right</td>
+</tr>
+<tr>
+<td>prefix <code>q</code></td>
+<td>Show pane numbers (press number to jump)</td>
+</tr>
+<tr>
+<td>prefix <code>Space</code></td>
+<td>Cycle layouts</td>
+</tr>
+</tbody>
+</table>
+<h2>Windows</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>prefix <code>c</code></td>
+<td>New window (in current directory)</td>
+</tr>
+<tr>
+<td>prefix <code>n</code> / <code>p</code></td>
+<td>Next / previous window</td>
+</tr>
+<tr>
+<td>prefix <code>1</code>–<code>9</code></td>
+<td>Jump to window by number (numbering starts at 1)</td>
+</tr>
+<tr>
+<td>prefix <code>w</code></td>
+<td>Window picker</td>
+</tr>
+<tr>
+<td>prefix <code>,</code></td>
+<td>Rename window (auto-names to its directory otherwise)</td>
+</tr>
+<tr>
+<td>prefix <code>&amp;</code></td>
+<td>Kill window (confirms)</td>
+</tr>
+<tr>
+<td>prefix <code>.</code></td>
+<td>Move window to another index</td>
+</tr>
+</tbody>
+</table>
+<h2>Admin</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>prefix <code>r</code></td>
+<td>Reload tmux.conf</td>
+</tr>
+<tr>
+<td>prefix <code>I</code></td>
+<td>TPM: install new plugins</td>
+</tr>
+<tr>
+<td>prefix <code>U</code></td>
+<td>TPM: update plugins</td>
+</tr>
+<tr>
+<td>prefix <code>t</code></td>
+<td>Clock, if you ever need to feel calm</td>
+</tr>
+<tr>
+<td>prefix <code>?</code></td>
+<td>List every binding tmux knows</td>
+</tr>
+</tbody>
+</table>
+<h2>Behavior worth remembering (set in conf, no keys)</h2>
+<ul>
+<li><strong>Killing a session drops you into the next one</strong> instead of detaching (<code>detach-on-destroy off</code>) — kill finished projects fearlessly.</li>
+<li><strong>Windows auto-rename to their directory</strong> — <code>api | web | configs</code>, not <code>zsh | zsh | zsh</code>.</li>
+<li>Splits and new windows <strong>open in the directory you're in</strong>, not <code>$HOME</code>.</li>
+<li>Escape time is 10ms, so nvim mode-switching never lags.</li>
+<li>iTerm tab title shows <code>session · window</code>.</li>
+</ul></div></body></html>

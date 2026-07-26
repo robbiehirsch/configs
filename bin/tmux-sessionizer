@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# tmux-sessionizer — fuzzy-pick a project, get a dedicated tmux session for it.
+#
+# One session per project: windows, panes, nvim instance and pinboard state all
+# stay scoped to that project. Re-selecting a project switches to its existing
+# session rather than making a new one.
+#
+# Usage:
+#   tmux-sessionizer            # fzf over the dirs below
+#   tmux-sessionizer ~/code/x   # skip the picker
+#
+# Bound to prefix + C-f in tmux.conf (popup), and Ctrl-F in zsh if you add:
+#   bindkey -s '^f' 'tmux-sessionizer\n'
+
+# Where your projects live. Each immediate subdirectory is one project.
+search_dirs=(
+  "$HOME/code"
+  "$HOME/configs"
+)
+
+if [[ $# -eq 1 ]]; then
+  selected="$1"
+else
+  selected=$(
+    {
+      # the parent dirs themselves are also valid targets (e.g. ~/configs)
+      printf '%s\n' "${search_dirs[@]}"
+      find "${search_dirs[@]}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null
+    } | sed "s|^$HOME|~|" | sort -u | fzf --prompt='project> ' --height=100% --reverse
+  )
+  selected="${selected/#\~/$HOME}"
+fi
+
+[[ -z "$selected" ]] && exit 0
+
+# session names can't contain . or :
+name=$(basename "$selected" | tr '.:' '__')
+
+if ! tmux has-session -t="$name" 2>/dev/null; then
+  tmux new-session -ds "$name" -c "$selected"
+fi
+
+if [[ -n "$TMUX" ]]; then
+  tmux switch-client -t "$name"
+else
+  tmux attach-session -t "$name"
+fi

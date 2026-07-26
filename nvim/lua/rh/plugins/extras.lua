@@ -436,6 +436,42 @@ return {
     },
   },
 
+  -- 13 ────────────────────────────────────────────────────────────────────
+  -- neovim-project — nvim-level projects. A registry of project roots with a
+  -- telescope picker; switching saves the current project's session and
+  -- restores the target's (buffers, tabs, windows). Built on
+  -- neovim-session-manager, so each project's state lives outside the repo.
+  --
+  -- ⚠️  Their README pins telescope to tag 0.1.4 in the dependency example —
+  -- deliberately NOT copied here, since lazy.nvim merges specs and that pin
+  -- would downgrade the telescope everything else uses.
+  --
+  -- last_session_on_startup is off so plain `nvim` still opens your dashboard;
+  -- projects load only when you ask.
+  {
+    "coffebar/neovim-project",
+    enabled = x.projects,
+    lazy = false,
+    priority = 100,
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "nvim-telescope/telescope.nvim",
+      "Shatur/neovim-session-manager",
+    },
+    opts = {
+      projects = {
+        "~/code/*",
+        "~/configs",
+      },
+      picker = { type = "telescope" },
+      last_session_on_startup = false,
+    },
+    keys = {
+      { "<leader>fp", "<cmd>NeovimProjectDiscover<cr>", desc = "Find project (session switch)" },
+      { "<leader>fP", "<cmd>NeovimProjectHistory<cr>", desc = "Recent projects" },
+    },
+  },
+
   -- ── bonus, all off by default ───────────────────────────────────────────
   {
     "ThePrimeagen/harpoon",
