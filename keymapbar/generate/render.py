@@ -60,7 +60,7 @@ def load_nvim(path: pathlib.Path):
         desc = (m.get("desc") or "").strip()
         if not desc:
             rhs = (m.get("rhs") or "").strip()
-            if not rhs or rhs == "<lua fn>" or len(rhs) > 40:
+            if not rhs or rhs == "<lua fn>" or len(rhs) > 40 or "<Plug>" in rhs:
                 continue  # unnameable internals: skip rather than mislead
             desc = html.escape(rhs)
         key = (lhs, desc)
@@ -116,7 +116,12 @@ def parse_tmux(path: pathlib.Path):
                 keylabel = key
             else:
                 keylabel = f"prefix {key}"
-            desc = comment[0] if comment else cmd[:70]
+            # full comment block, tidied: joined lines, arrow prefix like
+            # "prefix+g —" stripped (the key column already says that)
+            desc = " ".join(comment) if comment else cmd
+            desc = re.sub(r"^\S+\s*(→|—)\s*", "", desc)
+            if len(desc) > 110:
+                desc = desc[:107].rstrip() + "…"
             current[1].append((keylabel, desc))
             # keep the comment: one comment often labels a run of related
             # binds (e.g. the four pane-navigation keys)
@@ -187,8 +192,26 @@ def render_tmux(sections, out):
     print(f"wrote {out}")
 
 
+def write_spotlight(nvim_rows, tmux_sections, out):
+    """spotlight.json — consumed by the app to index every binding in macOS
+    Spotlight. Clicking a result opens KeymapBar pre-searched for that key."""
+    # NOTE: keys are NOT tag-stripped — "<C-d>" and "<leader>lf" only LOOK
+    # like HTML. Descriptions are ours (plain text, possibly entity-escaped).
+    items = []
+    for (lhs, desc), _badges in sorted(nvim_rows.items()):
+        items.append({"tab": "10-nvim", "key": lhs, "desc": html.unescape(desc)})
+    for _title, rows in tmux_sections:
+        for key, desc in rows:
+            items.append({"tab": "20-tmux", "key": key, "desc": desc})
+    out.write_text(json.dumps(items, indent=0))
+    print(f"wrote {out} ({len(items)} items)")
+
+
 if __name__ == "__main__":
     dump, tmux_conf, outdir = map(pathlib.Path, sys.argv[1:4])
     outdir.mkdir(parents=True, exist_ok=True)
-    render_nvim(load_nvim(dump), outdir / "10-nvim.html")
-    render_tmux(parse_tmux(tmux_conf), outdir / "20-tmux.html")
+    nvim_rows = load_nvim(dump)
+    tmux_sections = parse_tmux(tmux_conf)
+    render_nvim(nvim_rows, outdir / "10-nvim.html")
+    render_tmux(tmux_sections, outdir / "20-tmux.html")
+    write_spotlight(nvim_rows, tmux_sections, outdir / "spotlight.json")

@@ -1,0 +1,1377 @@
+[
+{
+"tab": "10-nvim",
+"key": "#",
+"desc": ":help v_#-default"
+},
+{
+"tab": "10-nvim",
+"key": "&",
+"desc": ":help &-default"
+},
+{
+"tab": "10-nvim",
+"key": "*",
+"desc": ":help v_star-default"
+},
+{
+"tab": "10-nvim",
+"key": "-",
+"desc": "Open parent directory"
+},
+{
+"tab": "10-nvim",
+"key": "<C-D>",
+"desc": "Half page down, centered"
+},
+{
+"tab": "10-nvim",
+"key": "<C-Down>",
+"desc": "Resize down"
+},
+{
+"tab": "10-nvim",
+"key": "<C-H>",
+"desc": "Pane/split left"
+},
+{
+"tab": "10-nvim",
+"key": "<C-J>",
+"desc": "Pane/split down"
+},
+{
+"tab": "10-nvim",
+"key": "<C-K>",
+"desc": "Pane/split up"
+},
+{
+"tab": "10-nvim",
+"key": "<C-L>",
+"desc": "Pane/split right"
+},
+{
+"tab": "10-nvim",
+"key": "<C-Left>",
+"desc": "Resize left"
+},
+{
+"tab": "10-nvim",
+"key": "<C-Right>",
+"desc": "Resize right"
+},
+{
+"tab": "10-nvim",
+"key": "<C-S>",
+"desc": "vim.lsp.buf.signature_help()"
+},
+{
+"tab": "10-nvim",
+"key": "<C-U>",
+"desc": ":help i_CTRL-U-default"
+},
+{
+"tab": "10-nvim",
+"key": "<C-U>",
+"desc": "Half page up, centered"
+},
+{
+"tab": "10-nvim",
+"key": "<C-Up>",
+"desc": "Resize up"
+},
+{
+"tab": "10-nvim",
+"key": "<C-W>",
+"desc": ":help i_CTRL-W-default"
+},
+{
+"tab": "10-nvim",
+"key": "<C-W><C-D>",
+"desc": "Show diagnostics under the cursor"
+},
+{
+"tab": "10-nvim",
+"key": "<C-W>d",
+"desc": "Show diagnostics under the cursor"
+},
+{
+"tab": "10-nvim",
+"key": "<Esc>",
+"desc": "Clear search highlight"
+},
+{
+"tab": "10-nvim",
+"key": "<F10>",
+"desc": "Debug: step over"
+},
+{
+"tab": "10-nvim",
+"key": "<F11>",
+"desc": "Debug: step into"
+},
+{
+"tab": "10-nvim",
+"key": "<F12>",
+"desc": "Debug: step out"
+},
+{
+"tab": "10-nvim",
+"key": "<F5>",
+"desc": "Debug: continue"
+},
+{
+"tab": "10-nvim",
+"key": "<M-Down>",
+"desc": "Resize down"
+},
+{
+"tab": "10-nvim",
+"key": "<M-Up>",
+"desc": "Resize up"
+},
+{
+"tab": "10-nvim",
+"key": "<M-h>",
+"desc": "Resize left"
+},
+{
+"tab": "10-nvim",
+"key": "<M-j>",
+"desc": "Move line down"
+},
+{
+"tab": "10-nvim",
+"key": "<M-k>",
+"desc": "Move line up"
+},
+{
+"tab": "10-nvim",
+"key": "<M-l>",
+"desc": "Resize right"
+},
+{
+"tab": "10-nvim",
+"key": "<S-Tab>",
+"desc": "vim.snippet.jump if active, otherwise <S-Tab>"
+},
+{
+"tab": "10-nvim",
+"key": "<Tab>",
+"desc": "Next edit suggestion"
+},
+{
+"tab": "10-nvim",
+"key": "<Tab>",
+"desc": "vim.snippet.jump if active, otherwise <Tab>"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>-",
+"desc": "Oil (float)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>.",
+"desc": "Scratch buffer"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>/",
+"desc": "Comment line"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>/",
+"desc": "Comment selection"
+},
+{
+"tab": "10-nvim",
+"key": "<leader><Tab>[",
+"desc": "Previous tab"
+},
+{
+"tab": "10-nvim",
+"key": "<leader><Tab>]",
+"desc": "Next tab"
+},
+{
+"tab": "10-nvim",
+"key": "<leader><Tab>n",
+"desc": "New tab"
+},
+{
+"tab": "10-nvim",
+"key": "<leader><Tab>x",
+"desc": "Close tab"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>?",
+"desc": "Buffer keymaps"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>M",
+"desc": "Split/join under cursor"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>Th",
+"desc": "Highlight groups at cursor"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>Ti",
+"desc": "Inspect syntax tree"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>aa",
+"desc": "AI prompt"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ac",
+"desc": "AI CLI pane"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ap",
+"desc": "Paste AWS SSO credentials"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>bc",
+"desc": "Collapse tree"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>bf",
+"desc": "Focus explorer"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>br",
+"desc": "Reveal file in tree"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>c",
+"desc": "Close buffer"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>dB",
+"desc": "Conditional breakpoint"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>db",
+"desc": "Toggle breakpoint"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>dc",
+"desc": "Continue"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>de",
+"desc": "Evaluate"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>dl",
+"desc": "Go: debug last test"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>dr",
+"desc": "Debug REPL"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>dt",
+"desc": "Go: debug nearest test"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>du",
+"desc": "Toggle debug UI"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>e",
+"desc": "Explorer"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>f",
+"desc": "Find files"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fP",
+"desc": "Recent projects"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fR",
+"desc": "Resume last picker"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fS",
+"desc": "Workspace symbols"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fb",
+"desc": "Buffers"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fc",
+"desc": "Grep word under cursor"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fd",
+"desc": "Diagnostics"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ff",
+"desc": "Find files"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fg",
+"desc": "Grep project"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fh",
+"desc": "Help tags"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fk",
+"desc": "Keymaps"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fm",
+"desc": "Marks"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fo",
+"desc": "Recent files"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fp",
+"desc": "Find project (session switch)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fr",
+"desc": "Registers"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>fs",
+"desc": "Document symbols"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gB",
+"desc": "Open in browser"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gD",
+"desc": "Diff working tree"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gF",
+"desc": "Lazygit file history"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gL",
+"desc": "Lazygit log"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gb",
+"desc": "Git branches"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gc",
+"desc": "Git commits"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gfc",
+"desc": "Git commits (this file)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gg",
+"desc": "Lazygit"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gh",
+"desc": "File history"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gm",
+"desc": "Merge tool"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gn",
+"desc": "Neogit"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>gs",
+"desc": "Git status"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>h",
+"desc": "No highlight"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>lR",
+"desc": "Rename file (LSP-aware)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>la",
+"desc": "Code action"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ld",
+"desc": "Line diagnostics"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>lf",
+"desc": "Format buffer"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>lh",
+"desc": "Toggle inlay hints"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>li",
+"desc": "LSP info"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>lm",
+"desc": "Format (LSP)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ln",
+"desc": "Rename symbol"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>lq",
+"desc": "Diagnostics to loclist"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>lr",
+"desc": "Restart LSP"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>lv",
+"desc": "Toggle verbose diagnostics"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>mj",
+"desc": "Join to one line"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ms",
+"desc": "Split across lines"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>nA",
+"desc": "Swap arg with prev"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>na",
+"desc": "Swap arg with next"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>oa",
+"desc": "Task action"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>oc",
+"desc": "Run shell command"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>or",
+"desc": "Run task"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ot",
+"desc": "Task list"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>q",
+"desc": "Quit"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>rH",
+"desc": "History search"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>rd",
+"desc": "Diff last two"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>re",
+"desc": "Choose environment"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>rf",
+"desc": "Find request"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>rh",
+"desc": "History"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ri",
+"desc": "Response info"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>rl",
+"desc": "Load collection"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>rp",
+"desc": "Pick & send request"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>rr",
+"desc": "Re-send last request"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>rs",
+"desc": "Save response"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ru",
+"desc": "Workspace (dashboard)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sC",
+"desc": "Commands"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sR",
+"desc": "Resume"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sS",
+"desc": "Search & replace (this file)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sb",
+"desc": "Buffers"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sc",
+"desc": "Colorscheme (live preview)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sf",
+"desc": "Find files"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sh",
+"desc": "Help"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sk",
+"desc": "Keymaps"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sm",
+"desc": "Maximize split"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sr",
+"desc": "Registers"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ss",
+"desc": "Search & replace (project)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>st",
+"desc": "Grep text"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>sw",
+"desc": "Replace word under cursor (file)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>tF",
+"desc": "Test file"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>tS",
+"desc": "Test suite"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>tf",
+"desc": "Terminal (float)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>tl",
+"desc": "Test last"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>tm",
+"desc": "Toggle markdown rendering"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>to",
+"desc": "Test output"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>tp",
+"desc": "Test output panel"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>ts",
+"desc": "Test summary"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>tt",
+"desc": "Test nearest"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>u",
+"desc": "Curlman dashboard"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>un",
+"desc": "Dismiss notifications"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>w",
+"desc": "Save"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>we",
+"desc": "Equalize splits"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>wh",
+"desc": "Split horizontal"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>wv",
+"desc": "Split vertical"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>wx",
+"desc": "Close split"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>xX",
+"desc": "Diagnostics (buffer)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>xf",
+"desc": "Quickfix (editable)"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>xl",
+"desc": "LSP refs/defs"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>xq",
+"desc": "Quickfix list"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>xs",
+"desc": "Symbol outline"
+},
+{
+"tab": "10-nvim",
+"key": "<leader>xx",
+"desc": "Diagnostics (project)"
+},
+{
+"tab": "10-nvim",
+"key": "<lt>",
+"desc": "Outdent, keep selection"
+},
+{
+"tab": "10-nvim",
+"key": ">",
+"desc": "Indent, keep selection"
+},
+{
+"tab": "10-nvim",
+"key": "@",
+"desc": ":help v_@-default"
+},
+{
+"tab": "10-nvim",
+"key": "H",
+"desc": "Previous buffer"
+},
+{
+"tab": "10-nvim",
+"key": "J",
+"desc": "Join lines, keep cursor put"
+},
+{
+"tab": "10-nvim",
+"key": "J",
+"desc": "Move selection down"
+},
+{
+"tab": "10-nvim",
+"key": "K",
+"desc": "Move selection up"
+},
+{
+"tab": "10-nvim",
+"key": "L",
+"desc": "Next buffer"
+},
+{
+"tab": "10-nvim",
+"key": "N",
+"desc": "Previous match, centered"
+},
+{
+"tab": "10-nvim",
+"key": "Q",
+"desc": ":help v_Q-default"
+},
+{
+"tab": "10-nvim",
+"key": "R",
+"desc": "Treesitter search"
+},
+{
+"tab": "10-nvim",
+"key": "S",
+"desc": "Flash treesitter"
+},
+{
+"tab": "10-nvim",
+"key": "X",
+"desc": "Close buffer"
+},
+{
+"tab": "10-nvim",
+"key": "Y",
+"desc": ":help Y-default"
+},
+{
+"tab": "10-nvim",
+"key": "[ ",
+"desc": "Add empty line above cursor"
+},
+{
+"tab": "10-nvim",
+"key": "[<C-L>",
+"desc": ":lpfile"
+},
+{
+"tab": "10-nvim",
+"key": "[<C-Q>",
+"desc": ":cpfile"
+},
+{
+"tab": "10-nvim",
+"key": "[<C-T>",
+"desc": ":ptprevious"
+},
+{
+"tab": "10-nvim",
+"key": "[A",
+"desc": ":rewind"
+},
+{
+"tab": "10-nvim",
+"key": "[B",
+"desc": ":brewind"
+},
+{
+"tab": "10-nvim",
+"key": "[D",
+"desc": "Jump to the first diagnostic in the current buffer"
+},
+{
+"tab": "10-nvim",
+"key": "[L",
+"desc": ":lrewind"
+},
+{
+"tab": "10-nvim",
+"key": "[N",
+"desc": "Select previous sibling node"
+},
+{
+"tab": "10-nvim",
+"key": "[Q",
+"desc": ":crewind"
+},
+{
+"tab": "10-nvim",
+"key": "[T",
+"desc": ":trewind"
+},
+{
+"tab": "10-nvim",
+"key": "[[",
+"desc": "Previous class/struct"
+},
+{
+"tab": "10-nvim",
+"key": "[a",
+"desc": ":previous"
+},
+{
+"tab": "10-nvim",
+"key": "[b",
+"desc": ":bprevious"
+},
+{
+"tab": "10-nvim",
+"key": "[d",
+"desc": "Jump to the previous diagnostic in the current buffer"
+},
+{
+"tab": "10-nvim",
+"key": "[l",
+"desc": ":lprevious"
+},
+{
+"tab": "10-nvim",
+"key": "[m",
+"desc": "Previous function"
+},
+{
+"tab": "10-nvim",
+"key": "[n",
+"desc": "Select previous node"
+},
+{
+"tab": "10-nvim",
+"key": "[q",
+"desc": ":cprevious"
+},
+{
+"tab": "10-nvim",
+"key": "[t",
+"desc": ":tprevious"
+},
+{
+"tab": "10-nvim",
+"key": "] ",
+"desc": "Add empty line below cursor"
+},
+{
+"tab": "10-nvim",
+"key": "]<C-L>",
+"desc": ":lnfile"
+},
+{
+"tab": "10-nvim",
+"key": "]<C-Q>",
+"desc": ":cnfile"
+},
+{
+"tab": "10-nvim",
+"key": "]<C-T>",
+"desc": ":ptnext"
+},
+{
+"tab": "10-nvim",
+"key": "]A",
+"desc": ":last"
+},
+{
+"tab": "10-nvim",
+"key": "]B",
+"desc": ":blast"
+},
+{
+"tab": "10-nvim",
+"key": "]D",
+"desc": "Jump to the last diagnostic in the current buffer"
+},
+{
+"tab": "10-nvim",
+"key": "]L",
+"desc": ":llast"
+},
+{
+"tab": "10-nvim",
+"key": "]N",
+"desc": "Select next sibling node"
+},
+{
+"tab": "10-nvim",
+"key": "]Q",
+"desc": ":clast"
+},
+{
+"tab": "10-nvim",
+"key": "]T",
+"desc": ":tlast"
+},
+{
+"tab": "10-nvim",
+"key": "]]",
+"desc": "Next class/struct"
+},
+{
+"tab": "10-nvim",
+"key": "]a",
+"desc": ":next"
+},
+{
+"tab": "10-nvim",
+"key": "]b",
+"desc": ":bnext"
+},
+{
+"tab": "10-nvim",
+"key": "]d",
+"desc": "Jump to the next diagnostic in the current buffer"
+},
+{
+"tab": "10-nvim",
+"key": "]l",
+"desc": ":lnext"
+},
+{
+"tab": "10-nvim",
+"key": "]m",
+"desc": "Next function"
+},
+{
+"tab": "10-nvim",
+"key": "]n",
+"desc": "Select next node"
+},
+{
+"tab": "10-nvim",
+"key": "]q",
+"desc": ":cnext"
+},
+{
+"tab": "10-nvim",
+"key": "]t",
+"desc": ":tnext"
+},
+{
+"tab": "10-nvim",
+"key": "aC",
+"desc": "around comment"
+},
+{
+"tab": "10-nvim",
+"key": "aa",
+"desc": "around parameter"
+},
+{
+"tab": "10-nvim",
+"key": "ab",
+"desc": "around block"
+},
+{
+"tab": "10-nvim",
+"key": "ac",
+"desc": "around class"
+},
+{
+"tab": "10-nvim",
+"key": "af",
+"desc": "around function"
+},
+{
+"tab": "10-nvim",
+"key": "ai",
+"desc": "around conditional"
+},
+{
+"tab": "10-nvim",
+"key": "an",
+"desc": "Select parent (outer) node"
+},
+{
+"tab": "10-nvim",
+"key": "ao",
+"desc": "around loop"
+},
+{
+"tab": "10-nvim",
+"key": "gD",
+"desc": "Go to declaration"
+},
+{
+"tab": "10-nvim",
+"key": "gO",
+"desc": "vim.lsp.buf.document_symbol()"
+},
+{
+"tab": "10-nvim",
+"key": "gc",
+"desc": "Comment textobject"
+},
+{
+"tab": "10-nvim",
+"key": "gc",
+"desc": "Toggle comment"
+},
+{
+"tab": "10-nvim",
+"key": "gcc",
+"desc": "Toggle comment line"
+},
+{
+"tab": "10-nvim",
+"key": "gd",
+"desc": "Go to definition"
+},
+{
+"tab": "10-nvim",
+"key": "gra",
+"desc": "vim.lsp.buf.code_action()"
+},
+{
+"tab": "10-nvim",
+"key": "gri",
+"desc": "vim.lsp.buf.implementation()"
+},
+{
+"tab": "10-nvim",
+"key": "grn",
+"desc": "vim.lsp.buf.rename()"
+},
+{
+"tab": "10-nvim",
+"key": "grr",
+"desc": "vim.lsp.buf.references()"
+},
+{
+"tab": "10-nvim",
+"key": "grt",
+"desc": "vim.lsp.buf.type_definition()"
+},
+{
+"tab": "10-nvim",
+"key": "grx",
+"desc": "vim.lsp.codelens.run()"
+},
+{
+"tab": "10-nvim",
+"key": "gx",
+"desc": "Opens filepath or URI under cursor with the system handler (file explorer, web browser, \u2026)"
+},
+{
+"tab": "10-nvim",
+"key": "iC",
+"desc": "inside comment"
+},
+{
+"tab": "10-nvim",
+"key": "ia",
+"desc": "inside parameter"
+},
+{
+"tab": "10-nvim",
+"key": "ib",
+"desc": "inside block"
+},
+{
+"tab": "10-nvim",
+"key": "ic",
+"desc": "inside class"
+},
+{
+"tab": "10-nvim",
+"key": "if",
+"desc": "inside function"
+},
+{
+"tab": "10-nvim",
+"key": "ii",
+"desc": "inside conditional"
+},
+{
+"tab": "10-nvim",
+"key": "in",
+"desc": "Select child (inner) node"
+},
+{
+"tab": "10-nvim",
+"key": "io",
+"desc": "inside loop"
+},
+{
+"tab": "10-nvim",
+"key": "jk",
+"desc": "Exit insert mode"
+},
+{
+"tab": "10-nvim",
+"key": "n",
+"desc": "Next match, centered"
+},
+{
+"tab": "10-nvim",
+"key": "p",
+"desc": "Paste without clobbering register"
+},
+{
+"tab": "10-nvim",
+"key": "r",
+"desc": "Remote flash"
+},
+{
+"tab": "10-nvim",
+"key": "s",
+"desc": "Flash jump"
+},
+{
+"tab": "10-nvim",
+"key": "x",
+"desc": "Delete char without yanking"
+},
+{
+"tab": "20-tmux",
+"key": "prefix C-Space",
+"desc": "send-prefix"
+},
+{
+"tab": "20-tmux",
+"key": "prefix h",
+"desc": "Vim style pane selection (with prefix)"
+},
+{
+"tab": "20-tmux",
+"key": "prefix j",
+"desc": "Vim style pane selection (with prefix)"
+},
+{
+"tab": "20-tmux",
+"key": "prefix k",
+"desc": "Vim style pane selection (with prefix)"
+},
+{
+"tab": "20-tmux",
+"key": "prefix l",
+"desc": "Vim style pane selection (with prefix)"
+},
+{
+"tab": "20-tmux",
+"key": "prefix D",
+"desc": "todos"
+},
+{
+"tab": "20-tmux",
+"key": "C-h",
+"desc": "if-shell \"$is_vim\" 'send-keys C-h' 'select-pane -L'"
+},
+{
+"tab": "20-tmux",
+"key": "C-j",
+"desc": "if-shell \"$is_vim\" 'send-keys C-j' 'select-pane -D'"
+},
+{
+"tab": "20-tmux",
+"key": "C-k",
+"desc": "if-shell \"$is_vim\" 'send-keys C-k' 'select-pane -U'"
+},
+{
+"tab": "20-tmux",
+"key": "C-l",
+"desc": "if-shell \"$is_vim\" 'send-keys C-l' 'select-pane -R'"
+},
+{
+"tab": "20-tmux",
+"key": "M-h",
+"desc": "Resize, also crossing the nvim/tmux boundary. vim-tmux-navigator never did this."
+},
+{
+"tab": "20-tmux",
+"key": "M-l",
+"desc": "Resize, also crossing the nvim/tmux boundary. vim-tmux-navigator never did this."
+},
+{
+"tab": "20-tmux",
+"key": "M-Up",
+"desc": "Resize, also crossing the nvim/tmux boundary. vim-tmux-navigator never did this."
+},
+{
+"tab": "20-tmux",
+"key": "M-Down",
+"desc": "Resize, also crossing the nvim/tmux boundary. vim-tmux-navigator never did this."
+},
+{
+"tab": "20-tmux",
+"key": "C-h (copy mode)",
+"desc": "Copy mode still needs these to work inside tmux's own vi mode"
+},
+{
+"tab": "20-tmux",
+"key": "C-j (copy mode)",
+"desc": "Copy mode still needs these to work inside tmux's own vi mode"
+},
+{
+"tab": "20-tmux",
+"key": "C-k (copy mode)",
+"desc": "Copy mode still needs these to work inside tmux's own vi mode"
+},
+{
+"tab": "20-tmux",
+"key": "C-l (copy mode)",
+"desc": "Copy mode still needs these to work inside tmux's own vi mode"
+},
+{
+"tab": "20-tmux",
+"key": "v (copy mode)",
+"desc": "send-keys -X begin-selection"
+},
+{
+"tab": "20-tmux",
+"key": "y (copy mode)",
+"desc": "send-keys -X copy-pipe-and-cancel \"pbcopy\""
+},
+{
+"tab": "20-tmux",
+"key": "prefix P",
+"desc": "paste-buffer"
+},
+{
+"tab": "20-tmux",
+"key": "MouseDragEnd1Pane (copy mode)",
+"desc": "send-keys -X copy-pipe-and-cancel \"pbcopy\""
+},
+{
+"tab": "20-tmux",
+"key": "prefix %",
+"desc": "splits open in the current directory"
+},
+{
+"tab": "20-tmux",
+"key": "prefix '\"'",
+"desc": "splits open in the current directory"
+},
+{
+"tab": "20-tmux",
+"key": "prefix c",
+"desc": "splits open in the current directory"
+},
+{
+"tab": "20-tmux",
+"key": "prefix r",
+"desc": "reload config"
+},
+{
+"tab": "20-tmux",
+"key": "prefix C-f",
+"desc": "prefix + C-f  \u2192  fzf popup of projects; creates-or-switches to a session"
+},
+{
+"tab": "20-tmux",
+"key": "prefix g",
+"desc": "prefix+g \u2014 lazygit in a popup over the current pane's repo. Close it and"
+},
+{
+"tab": "20-tmux",
+"key": "prefix C-t",
+"desc": "prefix+C-t \u2014 scratch terminal popup. Same scratch session every time, so"
+},
+{
+"tab": "20-tmux",
+"key": "prefix C-j",
+"desc": "prefix+C-j \u2014 fuzzy-switch between EXISTING sessions only (lighter-weight"
+}
+]
