@@ -320,10 +320,82 @@ function M.jq_filter(body, filter, cb)
   end
 end
 
+--- Shell single-quote-escape.
+local function shq(s)
+  return "'" .. tostring(s or ""):gsub("'", "'\\''") .. "'"
+end
+
+--- Build a clean, reproducible, shareable curl command (list of args) from a
+--- RESOLVED request. Unlike build_argv this inlines the body and omits curlman's
+--- internal -o/-D/-w plumbing, so it's something you'd actually paste in a shell.
+function M.to_command(req)
+  local a = { "curl", "-sS" }
+  local method = (req.method or "GET"):upper()
+  if method == "HEAD" then a[#a + 1] = "-I"
+  elseif method ~= "GET" then a[#a + 1] = "-X " .. method end
+
+  local url = req.url or ""
+  local have_ct = false
+  for _, h in ipairs(req.headers or {}) do
+    if h.key and h.key ~= "" then
+      a[#a + 1] = "-H " .. shq(h.key .. ": " .. (h.value or ""))
+      if h.key:lower() == "content-type" then have_ct = true end
+    end
+  end
+
+  if req.auth then
+    local p = req.auth.params or {}
+    if req.auth.type == "bearer" then
+      a[#a + 1] = "-H " .. shq("Authorization: Bearer " .. (p.token or ""))
+    elseif req.auth.type == "basic" then
+      a[#a + 1] = "-u " .. shq((p.username or "") .. ":" .. (p.password or ""))
+    elseif req.auth.type == "apikey" then
+      if (p["in"] or "header") == "query" then
+        local sep = url:find("?", 1, true) and "&" or "?"
+        url = url .. sep .. (p.key or "") .. "=" .. (p.value or "")
+      else
+        a[#a + 1] = "-H " .. shq((p.key or "") .. ": " .. (p.value or ""))
+      end
+    end
+  end
+
+  local b = req.body
+  if b and method ~= "HEAD" then
+    if b.mode == "raw" then
+      a[#a + 1] = "--data " .. shq(b.raw or "")
+      if not have_ct and b.language and LANG_CONTENT_TYPE[b.language] then
+        a[#a + 1] = "-H " .. shq("Content-Type: " .. LANG_CONTENT_TYPE[b.language])
+      end
+    elseif b.mode == "urlencoded" then
+      for _, p in ipairs(b.params or {}) do a[#a + 1] = "--data-urlencode " .. shq((p.key or "") .. "=" .. (p.value or "")) end
+    elseif b.mode == "formdata" then
+      for _, p in ipairs(b.params or {}) do
+        if p.ptype == "file" and p.src then a[#a + 1] = "-F " .. shq((p.key or "") .. "=@" .. p.src)
+        else a[#a + 1] = "-F " .. shq((p.key or "") .. "=" .. (p.value or "")) end
+      end
+    elseif b.mode == "graphql" then
+      local payload = vim.json.encode({ query = b.query or "", variables = b.variables or vim.empty_dict() })
+      a[#a + 1] = "--data " .. shq(payload)
+      if not have_ct then a[#a + 1] = "-H " .. shq("Content-Type: application/json") end
+    elseif b.mode == "file" and b.src then
+      a[#a + 1] = "--data-binary " .. shq("@" .. b.src)
+    end
+  end
+
+  a[#a + 1] = shq(url)
+  return a
+end
+
+--- The curl command as a readable multi-line string (backslash continuations).
+function M.to_command_string(req)
+  return table.concat(M.to_command(req), " \\\n  ")
+end
+
 M._internal = {
   parse_metrics = parse_metrics,
   parse_headers = parse_headers,
   METRIC_FORMAT = METRIC_FORMAT,
+  shq = shq,
 }
 
 return M

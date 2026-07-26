@@ -22,6 +22,10 @@ function M.setup_highlights()
   set("CurlmanStatus5xx", "DiagnosticError")
   set("CurlmanStatusErr", "DiagnosticError")
   set("CurlmanDim", "Comment")
+  set("CurlmanConfig", "Title")
+  set("CurlmanTitle", "Title")
+  set("CurlmanVarKey", "Identifier")
+  set("CurlmanOverride", "DiagnosticWarn")
   local _ = hl
 end
 
@@ -120,29 +124,26 @@ function M.show_running(req, cfg)
   vim.wo[win].winbar = "%#CurlmanDim# ⟳ running " .. wb_escape(req.method .. " " .. (req.name or "")) .. " …"
 end
 
---- Render a completed response into the pane and return the history entry.
-function M.show_response(result, cfg)
-  local win, buf = ensure_win(cfg)
-  local lines
-  if result.ok then
-    lines = format_body(result, cfg)
-  else
-    lines = { "curl exited " .. tostring(result.exit_code), "" }
-    for _, l in ipairs(util.lines(result.stderr or "")) do lines[#lines + 1] = l end
-    if result.body and result.body ~= "" then
-      lines[#lines + 1] = ""
-      for _, l in ipairs(util.lines(result.body)) do lines[#lines + 1] = l end
-    end
+--- Format a curl result into display lines (shared by the pane and by history).
+function M.format_lines(result, cfg)
+  if result.ok then return format_body(result, cfg) end
+  local lines = { "curl exited " .. tostring(result.exit_code), "" }
+  for _, l in ipairs(util.lines(result.stderr or "")) do lines[#lines + 1] = l end
+  if result.body and result.body ~= "" then
+    lines[#lines + 1] = ""
+    for _, l in ipairs(util.lines(result.body)) do lines[#lines + 1] = l end
   end
+  return lines
+end
 
+--- Render precomputed response lines into the single-response pane (quick path).
+function M.show_response(result, lines, cfg)
+  local win, buf = ensure_win(cfg)
   vim.bo[buf].modifiable = true
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.bo[buf].modifiable = false
   vim.bo[buf].filetype = result.ok and result.filetype or "text"
   vim.wo[win].winbar = build_winbar(result)
-
-  local entry = history.make_entry(result, lines)
-  return entry
 end
 
 --- Request picker.
@@ -264,68 +265,171 @@ function M.diff(entry_a, entry_b)
   vim.cmd("tabnew")
   local buf_a = entry_buffer(entry_a, "diff-A")
   vim.api.nvim_win_set_buf(0, buf_a)
-  vim.wo.winbar = "%#CurlmanDim# A: " .. wb_escape(history.label(entry_a))
+  vim.wo.winbar = "%#CurlmanDim# A: " .. wb_escape(history.entry_label(entry_a)) .. "   (q/gt: back)"
   vim.cmd("diffthis")
   vim.cmd("vertical rightbelow split")
   local buf_b = entry_buffer(entry_b, "diff-B")
   vim.api.nvim_win_set_buf(0, buf_b)
-  vim.wo.winbar = "%#CurlmanDim# B: " .. wb_escape(history.label(entry_b))
+  vim.wo.winbar = "%#CurlmanDim# B: " .. wb_escape(history.entry_label(entry_b)) .. "   (q/gt: back)"
   vim.cmd("diffthis")
   vim.cmd("normal! gg")
+
+  -- q / <Esc> close the diff tab and return to the workspace
+  local function close_diff() pcall(vim.cmd, "tabclose") end
+  for _, b in ipairs({ buf_a, buf_b }) do
+    for _, k in ipairs({ "q", "<Esc>" }) do
+      vim.keymap.set("n", k, close_diff, { buffer = b, nowait = true, silent = true })
+    end
+  end
 end
 
---- Pick two responses from recent history and diff them.
-function M.diff_pick(recent)
-  if not recent or #recent < 2 then
-    util.warn("need at least two responses in history to diff")
+--- Diff two responses from a request's own history. Auto-diffs the last two,
+--- or, with 3+, lets you pick which two.
+function M.diff_entries(entries)
+  if not entries or #entries < 2 then
+    util.warn("need at least two responses for this request to diff")
     return
   end
-  vim.ui.select(recent, {
-    prompt = "diff — pick A (older/base)",
-    format_item = history.label,
-  }, function(a)
+  if #entries == 2 then
+    M.diff(entries[2], entries[1]) -- older on the left
+    return
+  end
+  vim.ui.select(entries, { prompt = "diff — pick A (base)", format_item = history.entry_label }, function(a)
     if not a then return end
-    vim.ui.select(recent, {
-      prompt = "diff — pick B (compare)",
-      format_item = history.label,
-    }, function(b)
+    vim.ui.select(entries, { prompt = "diff — pick B (compare)", format_item = history.entry_label }, function(b)
       if b then M.diff(a, b) end
     end)
   end)
 end
 
---- Browse recent responses; selecting one re-renders it in the response pane.
-function M.pick_history(recent, cfg, on_choice)
-  if not recent or #recent == 0 then
-    util.warn("no responses in history yet")
-    return
+--- Winbar summary line built from a stored history entry.
+local function entry_winbar(e)
+  local parts = { "%#CurlmanMethod# " .. wb_escape(e.method or "?") .. " " }
+  if e.ok and e.status then
+    parts[#parts + 1] = "%#" .. (({ [2] = "CurlmanStatus2xx", [3] = "CurlmanStatus3xx",
+      [4] = "CurlmanStatus4xx", [5] = "CurlmanStatus5xx" })[math.floor((tonumber(e.status) or 500) / 100)]
+      or "CurlmanStatusErr") .. "# " .. e.status .. " "
+    local dim = {}
+    if e.time_total then dim[#dim + 1] = util.human_time(e.time_total) end
+    if e.size then dim[#dim + 1] = util.human_size(e.size) end
+    if e.config then dim[#dim + 1] = e.config end
+    parts[#parts + 1] = "%#CurlmanDim# " .. wb_escape(table.concat(dim, " · ")) .. " · " .. wb_escape(e.uri or "") .. " "
+  else
+    parts[#parts + 1] = "%#CurlmanStatusErr# ERROR "
   end
-  vim.ui.select(recent, {
-    prompt = "curlman history",
-    format_item = history.label,
-  }, function(entry)
-    if not entry then return end
-    local win, buf = ensure_win(cfg)
-    vim.bo[buf].modifiable = true
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, entry.lines or { "" })
-    vim.bo[buf].modifiable = false
-    vim.bo[buf].filetype = entry.filetype or "text"
-    vim.wo[win].winbar = "%#CurlmanDim# history · " .. wb_escape(history.label(entry))
-    if on_choice then on_choice(entry) end
-  end)
+  return table.concat(parts) .. "%#Normal#"
 end
 
---- Prompt for a path and save an entry's body there.
-function M.save_entry(entry, dir)
+--- Show a stored history entry's body in a big, resizable floating window.
+function M.show_body(entry, cfg)
+  if not entry then
+    util.warn("no response to show")
+    return
+  end
+  local lines = entry.lines
+  if not lines or #lines == 0 then lines = { "(empty body)" } end
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.bo[buf].modifiable = false
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].filetype = entry.filetype or "text"
+
+  local function opt(name, d) return (cfg and cfg.ui and cfg.ui[name]) or d end
+  local wf = opt("body_width", 0.85)
+  local hf = opt("body_height", 0.85)
+
+  local function geom(w, h)
+    local width = math.max(24, math.min(math.floor(vim.o.columns * w), vim.o.columns - 2))
+    local height = math.max(3, math.min(math.floor(vim.o.lines * h), vim.o.lines - 4))
+    return {
+      relative = "editor", width = width, height = height,
+      row = math.floor((vim.o.lines - height) / 2 - 1),
+      col = math.floor((vim.o.columns - width) / 2),
+      style = "minimal", border = "rounded",
+    }
+  end
+
+  local win = vim.api.nvim_open_win(buf, true, geom(wf, hf))
+  vim.wo[win].winbar = entry_winbar(entry) .. "%#CurlmanDim#   +/− resize · = max · q close"
+  vim.wo[win].wrap = false
+  vim.wo[win].number = false
+  vim.wo[win].cursorline = true
+
+  local cw, ch = wf, hf
+  local function resize(dw, dh)
+    cw = math.max(0.3, math.min(0.99, cw + dw))
+    ch = math.max(0.2, math.min(0.97, ch + dh))
+    if vim.api.nvim_win_is_valid(win) then pcall(vim.api.nvim_win_set_config, win, geom(cw, ch)) end
+  end
+  local function keymap(lhs, fn) vim.keymap.set("n", lhs, fn, { buffer = buf, nowait = true, silent = true }) end
+  keymap("+", function() resize(0.06, 0.06) end)
+  keymap("=", function() cw, ch = 0.99, 0.97; resize(0, 0) end) -- maximize
+  keymap("-", function() resize(-0.06, -0.06) end)
+  keymap("y", function() M.to_buffer("response", entry, cfg) end) -- copy body to a buffer
+  for _, k in ipairs({ "q", "<Esc>" }) do
+    keymap(k, function() if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end end)
+  end
+end
+
+--- Copy a request / response / both into a new editable buffer (own tab).
+-- kind = "request" | "response" | "both". entry is a history entry.
+function M.to_buffer(kind, entry, cfg)
+  if not entry then
+    util.warn("nothing to copy")
+    return
+  end
+  local req = entry.request or {}
+  local lines, ft = {}, "text"
+  local function add(l) lines[#lines + 1] = l end
+  local function curl_cmd()
+    for _, l in ipairs(util.lines(curl.to_command_string(req))) do add(l) end
+  end
+
+  if kind == "request" then
+    ft = "sh"
+    add("# " .. (req.method or "?") .. "  " .. (entry.name or "") .. "   (" .. (entry.config or "?") .. ")")
+    add("# " .. (entry.uri or req.url or ""))
+    curl_cmd()
+  elseif kind == "response" then
+    ft = entry.filetype or "text"
+    for _, l in ipairs(entry.lines or {}) do add(l) end
+  else -- both: a transcript
+    ft = "markdown"
+    add("# " .. (req.method or "?") .. " " .. (entry.name or "") .. "  →  "
+      .. tostring(entry.status or "ERR") .. " " .. (entry.reason or "")
+      .. "  ·  " .. util.human_time(entry.time_total) .. "  ·  " .. util.human_size(entry.size))
+    add("# " .. (entry.config or "") .. "  ·  " .. (entry.uri or req.url or ""))
+    add("")
+    add("## Request"); add("```sh"); curl_cmd(); add("```"); add("")
+    add("## Response headers"); add("```")
+    for _, l in ipairs(util.lines(entry.raw_headers or "")) do add(l) end
+    add("```"); add("")
+    add("## Response body"); add("```" .. (entry.filetype or ""))
+    for _, l in ipairs(entry.lines or {}) do add(l) end
+    add("```")
+  end
+
+  vim.cmd("tabnew")
+  local buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.bo[buf].buftype = "nofile"
+  vim.bo[buf].bufhidden = "hide"
+  vim.bo[buf].swapfile = false
+  vim.bo[buf].filetype = ft
+  vim.bo[buf].modifiable = true
+  pcall(vim.api.nvim_buf_set_name, buf, "curlman://copy/" .. kind .. "/" .. util.slug(entry.name or "x"))
+  util.info("copied " .. kind .. " to a buffer — yank it, :w it, or edit freely")
+end
+
+--- Prompt for a path (prefilled with a suggestion) and write the body there.
+function M.save_entry(entry, default_path)
   if not entry then
     util.warn("no response to save")
     return
   end
-  local default = util.expand(dir) .. "/" .. os.date("%Y%m%d-%H%M%S") .. "_" .. util.slug(entry.name) .. "." ..
-    ({ json = "json", xml = "xml", html = "html", text = "txt" })[entry.filetype or "text"]
-  vim.ui.input({ prompt = "Save response to: ", default = default, completion = "file" }, function(path)
+  vim.ui.input({ prompt = "Save response to: ", default = default_path, completion = "file" }, function(path)
     if not path or path == "" then return end
-    local ok, err = require("rh.curlman.history").save(entry, dir, util.expand(path))
+    local ok, err = history.save_entry(entry, util.expand(path))
     if ok then util.info("saved → " .. ok) else util.err("save failed: " .. tostring(err)) end
   end)
 end

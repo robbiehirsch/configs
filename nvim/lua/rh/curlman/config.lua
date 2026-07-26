@@ -6,6 +6,7 @@ local M = {}
 function M.defaults()
   local data = (vim.fn and vim.fn.stdpath and vim.fn.stdpath("data")) or (os.getenv("HOME") .. "/.local/share/nvim")
   local cache = (vim.fn and vim.fn.stdpath and vim.fn.stdpath("cache")) or (os.getenv("HOME") .. "/.cache/nvim")
+  local state = (vim.fn and vim.fn.stdpath and vim.fn.stdpath("state")) or (os.getenv("HOME") .. "/.local/state/nvim")
   return {
     -- WHERE TO FIND REQUESTS -------------------------------------------------
     collection = nil,        -- path (string) or list of paths to *.postman_collection.json
@@ -33,8 +34,12 @@ function M.defaults()
 
     -- UI ---------------------------------------------------------------------
     ui = {
-      split = "vertical",    -- "vertical" | "horizontal" response pane
-      size = 0.5,            -- fraction of the editor
+      split = "vertical",    -- "vertical" | "horizontal" quick response pane
+      size = 0.5,            -- fraction of the editor (quick pane)
+      left_width = 0.34,     -- workspace: fraction for the configs panel
+      preview_lines = 12,    -- workspace: lines of the latest response to show inline
+      body_width = 0.85,     -- response viewer float: fraction of the editor
+      body_height = 0.85,
       pretty_json = true,
       jq_pretty = true,      -- use jq for pretty-printing when installed
       focus_response = false,-- keep cursor in the current window after sending
@@ -44,8 +49,9 @@ function M.defaults()
     history = {
       enabled = true,
       dir = cache .. "/curlman/history",
-      max_recent = 50,
+      max_recent = 10,       -- default responses kept PER REQUEST (cap 2/5/10 at runtime)
       autosave = false,      -- write every response to disk automatically
+      state_file = state .. "/curlman/recent.json", -- remembers recently-loaded files
     },
 
     -- Install default <leader>a* keymaps. Off by default; Robbie's keymaps.lua

@@ -67,8 +67,6 @@ require('setup-templ').config()
 -- }
 
 
-require('nvim-ts-autotag').setup()
-
 -- curlman: Postman-style API client (local module at lua/rh/curlman)
 require("rh.curlman").setup({
   -- Point these at your exported Postman v2.1 files, or run :CurlmanDemo first.
@@ -93,6 +91,9 @@ lvim.builtin.which_key.mappings["r"] = {
   H = { "<cmd>Telescope curlman history<cr>", "History search (Telescope)" },
 }
 
+-- <leader>m — Pinboard group label (pinboard installs its own <leader>m* keymaps)
+lvim.builtin.which_key.mappings["m"] = { name = "Pinboard" }
+
 -- Route vim.ui.select through Telescope, and load the curlman Telescope extension
 lvim.builtin.telescope.on_config_done = function(telescope)
   pcall(telescope.load_extension, "ui-select")
@@ -108,10 +109,16 @@ lvim.plugins = {
         "nvim-telescope/telescope-ui-select.nvim"
     },
     {
+        -- local plugin: persistent, project-level bookmarks (~/code/pinboard.nvim)
+        dir = vim.fn.expand("~/code/pinboard.nvim"),
+        config = function() require("pinboard").setup({}) end,
+    },
+    {
         "tpope/vim-surround"
     },
     {
-        "windwp/nvim-ts-autotag"
+        "windwp/nvim-ts-autotag",
+        config = function() require("nvim-ts-autotag").setup() end,
     },
     {
         "bluz71/vim-nightfly-colors",
