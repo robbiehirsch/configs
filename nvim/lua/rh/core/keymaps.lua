@@ -134,6 +134,6 @@ map("n", "gd", vim.lsp.buf.definition, { desc = "Go to definition" })
 -- ══ your custom modules ═══════════════════════════════════════════════════
 -- <leader>ap = AWS creds. Your lvim config bound this; your old nvim config
 -- bound the same key to curlman. lvim wins, so curlman lives entirely under
--- <leader>r and <leader>u (see plugins/curlman.lua).
+-- <leader>r and <leader>u (see core/locals.lua).
 map("n", "<leader>ap", function() require("rh.custom.aws_creds").paste() end,
   { desc = "Paste AWS SSO credentials" })

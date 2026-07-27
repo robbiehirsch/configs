@@ -1,9 +1,10 @@
--- Your own code that isn't a git plugin: curlman and the custom/ helpers.
+-- Curlman keymaps.
 --
--- These live under lua/rh/ inside this config, so they're already on the
--- runtimepath — they need requiring, not installing. Setup is deferred to
--- lazy.nvim's "VeryLazy" event so that telescope exists by the time curlman
--- registers its extension.
+-- curlman.nvim is now a standalone plugin loaded from ~/code/curlman.nvim
+-- (see lua/rh/plugins/lang.lua), which is where its setup() runs. These
+-- keymaps just point at the :Curlman* commands that plugin creates; they live
+-- here rather than in the plugin spec so the whole <leader>r group is defined
+-- in one place regardless of whether the plugin is loaded yet.
 
 -- ── keymaps (safe to define immediately; they're just :commands) ──────────
 local map = vim.keymap.set
@@ -26,21 +27,5 @@ map("n", "<leader>rs", "<cmd>CurlmanSave<cr>", { desc = "Save response" })
 map("n", "<leader>rf", "<cmd>Telescope curlman requests<cr>", { desc = "Find request" })
 map("n", "<leader>rH", "<cmd>Telescope curlman history<cr>", { desc = "History search" })
 
--- ── deferred setup ────────────────────────────────────────────────────────
-vim.api.nvim_create_autocmd("User", {
-  pattern = "VeryLazy",
-  group = vim.api.nvim_create_augroup("rh_locals", { clear = true }),
-  callback = function()
-    local ok, curlman = pcall(require, "rh.curlman")
-    if not ok then
-      vim.notify("curlman failed to load: " .. tostring(curlman), vim.log.levels.WARN)
-      return
-    end
-    pcall(curlman.setup, {
-      -- Point these at exported Postman v2.1 files, or run :CurlmanDemo first.
-      -- collection  = "~/apis/work.postman_collection.json",
-      -- environment = "~/apis/work.postman_environment.json",
-      -- For self-signed / corporate certs: curl = { insecure = true },
-    })
-  end,
-})
+-- Setup now happens in the curlman.nvim plugin spec (lua/rh/plugins/lang.lua),
+-- which calls require("curlman").setup() on VeryLazy. Nothing to defer here.

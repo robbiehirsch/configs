@@ -46,8 +46,12 @@ return {
   },
 
   -- ══ your local plugins ══════════════════════════════════════════════════
-  -- pinboard.nvim, developed at ~/code/pinboard.nvim. If that directory is
-  -- missing, this spec is skipped rather than erroring on startup.
+  -- Developed as standalone repos under ~/code/*.nvim and loaded from those
+  -- working copies via lazy's `dir=`, so edits are live on the next restart
+  -- with no install step. Each spec is gated on `cond` so a fresh clone of
+  -- this config on another machine (before the plugin repo is checked out)
+  -- skips it rather than erroring on startup. To add a new local plugin,
+  -- copy one of these blocks and change the name.
   {
     "pinboard.nvim",
     dir = vim.fn.expand("~/code/pinboard.nvim"),
@@ -57,5 +61,25 @@ return {
     event = "VeryLazy",
     opts = {},
     config = function(_, opts) require("pinboard").setup(opts) end,
+  },
+
+  -- curlman.nvim, developed at ~/code/curlman.nvim. This replaces the old
+  -- embedded copy that used to live at lua/rh/curlman/ (namespace rh.curlman);
+  -- the standalone repo is now the single source of truth (namespace curlman).
+  -- Its telescope extension and :Curlman* commands come from the repo itself.
+  {
+    "curlman.nvim",
+    dir = vim.fn.expand("~/code/curlman.nvim"),
+    cond = function()
+      return vim.uv.fs_stat(vim.fn.expand("~/code/curlman.nvim")) ~= nil
+    end,
+    event = "VeryLazy",
+    opts = {
+      -- Point these at exported Postman v2.1 files, or run :CurlmanDemo first.
+      -- collection  = "~/apis/work.postman_collection.json",
+      -- environment = "~/apis/work.postman_environment.json",
+      -- For self-signed / corporate certs: curl = { insecure = true },
+    },
+    config = function(_, opts) require("curlman").setup(opts) end,
   },
 }

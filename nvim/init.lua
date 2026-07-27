@@ -6,8 +6,9 @@
 --   lua/rh/core/         options, keymaps, autocmds, lazy.nvim bootstrap
 --   lua/rh/plugins/      one file per concern, each returns a lazy.nvim spec
 --   lsp/                 native vim.lsp.config server definitions (0.11+ style)
---   lua/rh/curlman/      your Postman replacement
 --   lua/rh/custom/       aws_creds and friends
+--   (curlman is a standalone repo now: ~/code/curlman.nvim, wired in
+--    lua/rh/plugins/lang.lua alongside pinboard.nvim)
 --
 -- :checkhealth  after any upgrade
 -- :Lazy         plugin manager UI
