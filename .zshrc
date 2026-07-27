@@ -108,4 +108,8 @@ function check_domains {
 }
 
 # ── machine-local overrides (NOT in git): proxies, certs, tokens ──────────
+# lazygit in side-by-side diff mode (delta two-column). Plain `lazygit` stays
+# inline; tip: press + inside lazygit to enlarge the main panel first.
+alias lgs='lazygit --use-config-file="$HOME/configs/lazygit/config.yml,$HOME/configs/lazygit/side-by-side.yml"'
+
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"

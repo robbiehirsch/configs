@@ -1,0 +1,12 @@
+# Overlay for the `lgs` alias: identical to config.yml but delta renders
+# side-by-side. Used as the second file in --use-config-file, so it only
+# needs to override the pager.
+git:
+  paging:
+    colorArg: always
+    pager: >-
+      delta --dark --paging=never --line-numbers --side-by-side
+      --file-style="bold yellow ul"
+      --file-decoration-style="yellow ul"
+      --hunk-header-style="line-number syntax"
+      --hunk-header-decoration-style="blue box"

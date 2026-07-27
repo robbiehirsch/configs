@@ -1,0 +1,33 @@
+# lazygit — canonical config, lives in ~/configs/lazygit/config.yml.
+#
+# Symlink it to wherever lazygit actually looks (`lazygit --print-config-dir`
+# tells you; on macOS that's usually ~/Library/Application Support/lazygit,
+# or ~/.config/lazygit if XDG_CONFIG_HOME is set):
+#
+#   mkdir -p "$(lazygit --print-config-dir)"
+#   ln -sf ~/configs/lazygit/config.yml "$(lazygit --print-config-dir)/config.yml"
+#
+# Requires git-delta:  brew install git-delta
+
+git:
+  pagers:
+    - colorArg: always
+      # delta gives each file a bold underlined header and each hunk a boxed
+      # separator line, so every change reads as its own visual block instead
+      # of one undifferentiated wall of -/+ lines.
+      pager: >-
+        delta --dark --paging=never --line-numbers --file-style="bold yellow ul" --file-decoration-style="yellow ul" --hunk-header-style="line-number syntax" --hunk-header-decoration-style="blue box"
+gui:
+  # a touch more room for the diff pane
+  sidePanelWidth: 0.3
+  nerdFontsVersion: "3"
+
+keybinding:
+  universal:
+    # laptop-friendly main-panel scrolling; PgUp/PgDn stay as primaries.
+    # (J/K and Ctrl-u/Ctrl-d are actually lazygit defaults — pinned here so
+    # they're documented and survive upstream default changes.)
+    scrollUpMainAlt1: "K"
+    scrollDownMainAlt1: "J"
+    scrollUpMainAlt2: "<c-u>"
+    scrollDownMainAlt2: "<c-d>"
