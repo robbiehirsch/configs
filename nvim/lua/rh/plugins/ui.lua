@@ -2,6 +2,13 @@
 
 local cfg = require("rh.config")
 
+-- Git root of the file you're actually looking at, regardless of nvim's cwd.
+-- Browsing another project in the tree and hitting <leader>gg should open
+-- lazygit for THAT repo, not error because :pwd is somewhere higher up.
+local function git_root()
+  return vim.fs.root(0, ".git") or vim.uv.cwd()
+end
+
 return {
   -- ══ which-key ═══════════════════════════════════════════════════════════
   -- ⚠️  v3 changed the spec format completely. Your lvim style —
@@ -84,9 +91,9 @@ return {
       },
     },
     keys = {
-      { "<leader>gg", function() Snacks.lazygit() end, desc = "Lazygit" },
-      { "<leader>gL", function() Snacks.lazygit.log() end, desc = "Lazygit log" },
-      { "<leader>gF", function() Snacks.lazygit.log_file() end, desc = "Lazygit file history" },
+      { "<leader>gg", function() Snacks.lazygit({ cwd = git_root() }) end, desc = "Lazygit" },
+      { "<leader>gL", function() Snacks.lazygit.log({ cwd = git_root() }) end, desc = "Lazygit log" },
+      { "<leader>gF", function() Snacks.lazygit.log_file({ cwd = git_root() }) end, desc = "Lazygit file history" },
       { "<leader>gB", function() Snacks.gitbrowse() end, mode = { "n", "v" }, desc = "Open in browser" },
       { "<leader>tf", function() Snacks.terminal() end, desc = "Terminal (float)" },
       { "<leader>.", function() Snacks.scratch() end, desc = "Scratch buffer" },
