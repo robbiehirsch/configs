@@ -45,34 +45,25 @@ return {
     ft = "templ",
   },
 
-  -- ══ your local plugins ══════════════════════════════════════════════════
-  -- Developed as standalone repos under ~/code/*.nvim and loaded from those
-  -- working copies via lazy's `dir=`, so edits are live on the next restart
-  -- with no install step. Each spec is gated on `cond` so a fresh clone of
-  -- this config on another machine (before the plugin repo is checked out)
-  -- skips it rather than erroring on startup. To add a new local plugin,
-  -- copy one of these blocks and change the name.
+  -- ══ your plugins ════════════════════════════════════════════════════
+  -- Published at github.com/robbiehirsch/{pinboard,curlman}.nvim and consumed
+  -- like any other public plugin. `dev = true` + the `dev.fallback` setting
+  -- in core/lazy.lua means: when a checkout exists at ~/code/<name> (personal
+  -- machine) lazy loads that working copy, so edits are live on the next
+  -- restart; when it doesn't (work machine, or a fresh clone anywhere) lazy
+  -- clones from GitHub like any other package. Update with :Lazy sync.
   {
-    "pinboard.nvim",
-    dir = vim.fn.expand("~/code/pinboard.nvim"),
-    cond = function()
-      return vim.uv.fs_stat(vim.fn.expand("~/code/pinboard.nvim")) ~= nil
-    end,
+    "robbiehirsch/pinboard.nvim",
+    dev = true,
     event = "VeryLazy",
     opts = {},
     config = function(_, opts) require("pinboard").setup(opts) end,
   },
 
-  -- curlman.nvim, developed at ~/code/curlman.nvim. This replaces the old
-  -- embedded copy that used to live at lua/rh/curlman/ (namespace rh.curlman);
-  -- the standalone repo is now the single source of truth (namespace curlman).
-  -- Its telescope extension and :Curlman* commands come from the repo itself.
+  -- Telescope extension and :Curlman* commands ship with the repo itself.
   {
-    "curlman.nvim",
-    dir = vim.fn.expand("~/code/curlman.nvim"),
-    cond = function()
-      return vim.uv.fs_stat(vim.fn.expand("~/code/curlman.nvim")) ~= nil
-    end,
+    "robbiehirsch/curlman.nvim",
+    dev = true,
     event = "VeryLazy",
     opts = {
       -- Point these at exported Postman v2.1 files, or run :CurlmanDemo first.

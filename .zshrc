@@ -13,7 +13,13 @@
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
-source /opt/homebrew/opt/powerlevel10k/powerlevel10k.zsh-theme
+# p10k lives in different places per machine — take the first that exists
+for _p10k in /opt/homebrew/opt/powerlevel10k/powerlevel10k.zsh-theme \
+             /usr/local/opt/powerlevel10k/powerlevel10k.zsh-theme \
+             "$HOME/powerlevel10k/powerlevel10k.zsh-theme"; do
+  [[ -r "$_p10k" ]] && { source "$_p10k"; break }
+done
+unset _p10k
 
 # ── editor (before any bindkey — see header) ──────────────────────────────
 export EDITOR='nvim'
@@ -21,7 +27,7 @@ export VISUAL='nvim'
 
 # ── PATH ──────────────────────────────────────────────────────────────────
 export PATH="$HOME/.cargo/bin:$HOME/.codeium/windsurf/bin:$HOME/bin:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin:/usr/local/go/bin:$HOME/go/bin:$HOME/Library/Python/3.9/bin:$PATH"
-. "$HOME/.cargo/env"
+[[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
 export PATH="/Applications/Blender.app/Contents/MacOS:$PATH"
 # bob (nvim version manager) must be prepended LAST so its nvim beats
 # homebrew's — this is what makes `bob use <version>` actually take effect.
@@ -48,6 +54,7 @@ plugins=(
     vi-mode dircycle
     zsh-navigation-tools zsh-autosuggestions zsh-interactive-cd
     vscode
+    jsontools copybuffer copyfile copypath
 )
 # note: zsh-syntax-highlighting was in the old repo copy but not the live
 # file — re-add to the list above if you miss it.
@@ -76,11 +83,18 @@ bindkey -M emacs '^y' autosuggest-accept
 
 # ── aliases ───────────────────────────────────────────────────────────────
 alias c=clear
+alias pc='pwd | pbcopy'
 alias python=python3
 alias pip=pip3
 alias vi='nvim'
 alias rc='nvim ~/.zshrc'
 alias tmuxreload='tmux source ~/.tmux.conf'
+
+# ── fzf: bat-powered previews (only when bat exists) ──────────────────────
+if command -v bat >/dev/null; then
+  export FZF_DEFAULT_OPTS="--cycle --extended --multi --preview-window=wrap --preview 'bat --color=always {}'"
+fi
+alias fzgit="git grep --line-number '' | fzf --delimiter : --preview 'nl {1}' --preview-window '+{2}-5'"
 
 # ── functions ─────────────────────────────────────────────────────────────
 function check_domains {
@@ -92,3 +106,6 @@ function check_domains {
     done
   done
 }
+
+# ── machine-local overrides (NOT in git): proxies, certs, tokens ──────────
+[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"

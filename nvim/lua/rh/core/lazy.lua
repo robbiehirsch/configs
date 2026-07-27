@@ -24,6 +24,10 @@ require("lazy").setup({
     { import = "rh.plugins" },
   },
   defaults = { lazy = true },
+  -- Your own plugins: specs marked `dev = true` use ~/code/<name> when that
+  -- checkout exists (personal machine, for development) and fall back to
+  -- cloning from GitHub like any other plugin when it doesn't (work machine).
+  dev = { path = "~/code", fallback = true },
   install = { colorscheme = { require("rh.config").colorscheme, "habamax" } },
   checker = { enabled = true, notify = false }, -- background update checks, quietly
   change_detection = { notify = false },
