@@ -89,7 +89,6 @@ return {
       { "<leader>gF", function() Snacks.lazygit.log_file() end, desc = "Lazygit file history" },
       { "<leader>gB", function() Snacks.gitbrowse() end, mode = { "n", "v" }, desc = "Open in browser" },
       { "<leader>tf", function() Snacks.terminal() end, desc = "Terminal (float)" },
-      { "<leader>un", function() Snacks.notifier.hide() end, desc = "Dismiss notifications" },
       { "<leader>.", function() Snacks.scratch() end, desc = "Scratch buffer" },
       { "<leader>lR", function() Snacks.rename.rename_file() end, desc = "Rename file (LSP-aware)" },
     },

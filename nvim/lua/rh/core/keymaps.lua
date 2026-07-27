@@ -14,7 +14,13 @@ local map = vim.keymap.set
 -- ══ basics ════════════════════════════════════════════════════════════════
 map("i", "jk", "<ESC>", { desc = "Exit insert mode" })       -- from old nvim config
 map("n", "x", '"_x', { desc = "Delete char without yanking" }) -- from old nvim config
-map("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
+map("n", "<Esc>", function()
+  vim.cmd.nohlsearch()
+  -- also dismiss snacks notification popups: Esc = "make the noise go away".
+  -- This used to be <leader>un, which sat on the <leader>u prefix and made
+  -- which-key swallow the CurlmanUI binding.
+  if _G.Snacks and Snacks.notifier then Snacks.notifier.hide() end
+end, { desc = "Clear search highlight + notifications" })
 
 -- lvim defaults
 map("n", "<leader>w", "<cmd>w!<CR>", { desc = "Save" })
