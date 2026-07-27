@@ -9,6 +9,12 @@
 --
 -- Your curlman telescope extension is loaded here too.
 
+-- Git pickers should act on the repo of the file you're looking at, not on
+-- nvim's cwd (which may be above or outside the repo when you browse around).
+local function git_root()
+  return vim.fs.root(0, ".git") or vim.uv.cwd()
+end
+
 return {
   {
     "nvim-telescope/telescope.nvim",
@@ -107,10 +113,10 @@ return {
       { "<leader>sC", "<cmd>Telescope commands<cr>", desc = "Commands" },
 
       -- git pickers, from your old config
-      { "<leader>gc", "<cmd>Telescope git_commits<cr>", desc = "Git commits" },
-      { "<leader>gfc", "<cmd>Telescope git_bcommits<cr>", desc = "Git commits (this file)" },
-      { "<leader>gb", "<cmd>Telescope git_branches<cr>", desc = "Git branches" },
-      { "<leader>gs", "<cmd>Telescope git_status<cr>", desc = "Git status" },
+      { "<leader>gc", function() require("telescope.builtin").git_commits({ cwd = git_root() }) end, desc = "Git commits" },
+      { "<leader>gfc", function() require("telescope.builtin").git_bcommits({ cwd = git_root() }) end, desc = "Git commits (this file)" },
+      { "<leader>gb", function() require("telescope.builtin").git_branches({ cwd = git_root() }) end, desc = "Git branches" },
+      { "<leader>gs", function() require("telescope.builtin").git_status({ cwd = git_root() }) end, desc = "Git status" },
     },
   },
 }
