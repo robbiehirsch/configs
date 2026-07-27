@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# cfgpush ["commit message"] — commit + push every dirty config repo at once:
+#   ~/configs, ~/code/pinboard.nvim, ~/code/curlman.nvim (skips missing ones)
+# Repos that are clean but ahead of origin still get pushed.
+# Refuses to run on consumer machines (CFG_CONSUMER=1) — they can't push.
+set -u
+if [[ -n "${CFG_CONSUMER:-}" ]]; then
+  echo "cfgpush: this machine is consume-only (CFG_CONSUMER=1); push from the personal machine" >&2
+  exit 1
+fi
+MSG="${1:-config sync $(date '+%Y-%m-%d %H:%M')}"
+REPOS=("$HOME/configs" "$HOME/code/pinboard.nvim" "$HOME/code/curlman.nvim")
+
+for r in "${REPOS[@]}"; do
+  [[ -d "$r/.git" ]] || continue
+  name="${r/#$HOME/~}"
+  if [[ -n "$(git -C "$r" status --porcelain)" ]]; then
+    printf '── commit+push %s\n' "$name"
+    git -C "$r" status --short | sed 's/^/   /'
+    git -C "$r" add -A
+    git -C "$r" commit -q -m "$MSG"
+    git -C "$r" push || printf '   push FAILED\n'
+  elif [[ -n "$(git -C "$r" log --oneline @{u}..HEAD 2>/dev/null)" ]]; then
+    printf '── push %s (committed but unpushed)\n' "$name"
+    git -C "$r" push || printf '   push FAILED\n'
+  else
+    printf '── %s: clean, nothing to do\n' "$name"
+  fi
+done

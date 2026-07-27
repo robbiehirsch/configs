@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# cfgpull — update every config repo on this machine in one shot:
+#   ~/configs, ~/code/pinboard.nvim, ~/code/curlman.nvim (skips missing ones)
+#
+# Two modes:
+#   consumer machine (work): export CFG_CONSUMER=1 in ~/.zshrc.local
+#     -> local drift is discarded before pulling (the repo is read-only there)
+#   dev machine (personal): default
+#     -> dirty repos are SKIPPED with a warning, never clobbered
+set -u
+REPOS=("$HOME/configs" "$HOME/code/pinboard.nvim" "$HOME/code/curlman.nvim")
+
+for r in "${REPOS[@]}"; do
+  [[ -d "$r/.git" ]] || continue
+  printf '── pull %s\n' "${r/#$HOME/~}"
+  if [[ -n "${CFG_CONSUMER:-}" ]]; then
+    git -C "$r" checkout -- . 2>/dev/null # consume-only: discard drift
+  elif [[ -n "$(git -C "$r" status --porcelain)" ]]; then
+    printf '   skipped: uncommitted changes (cfgpush or stash first)\n'
+    continue
+  fi
+  git -C "$r" pull --rebase --autostash=false || printf '   pull FAILED\n'
+done
