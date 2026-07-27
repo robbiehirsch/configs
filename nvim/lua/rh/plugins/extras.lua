@@ -71,6 +71,14 @@ return {
       engine = "ripgrep",
       enabledEngines = { "ripgrep", "astgrep", "astgrep-rules" },
       visualSelectionUsage = "auto-detect",
+      -- Result rails. grug-far stops searching after maxSearchMatches (its
+      -- default is 2000; explicit here so you know the knob exists — lower it
+      -- if huge searches still feel heavy). extraArgs skips megafiles, same
+      -- as telescope's vimgrep_arguments. For one-off narrowing, type rg
+      -- flags straight into the Flags field in the UI: --max-depth=3,
+      -- --max-count=5, -g '!dist' all work.
+      maxSearchMatches = 2000,
+      engines = { ripgrep = { extraArgs = "--max-filesize=1M" } },
     },
     keys = {
       -- <leader>ss / sS, NOT sr / sR: lvim already owns <leader>sr (registers)

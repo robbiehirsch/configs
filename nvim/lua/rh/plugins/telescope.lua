@@ -31,6 +31,15 @@ return {
           prompt_prefix = "  ",
           selection_caret = " ",
           path_display = { "truncate" },
+          -- rg safety rails: skip megafiles (minified bundles, lockfiles,
+          -- binaries that slip through) and trim leading whitespace. Together
+          -- with root-scoping below, this is what keeps live_grep from
+          -- freezing when you're sitting high in the directory tree.
+          vimgrep_arguments = {
+            "rg", "--color=never", "--no-heading", "--with-filename",
+            "--line-number", "--column", "--smart-case",
+            "--trim", "--max-filesize=1M",
+          },
           sorting_strategy = "ascending",
           layout_config = { horizontal = { prompt_position = "top", preview_width = 0.55 } },
           file_ignore_patterns = { "node_modules", "%.git/", "vendor/", "%_templ%.go", "%.pb%.go" },
@@ -88,8 +97,10 @@ return {
 
       -- your old nvim config's <leader>f* group
       { "<leader>ff", "<cmd>Telescope find_files<cr>", desc = "Find files" },
-      { "<leader>fg", "<cmd>Telescope live_grep<cr>", desc = "Grep project" },
-      { "<leader>fc", "<cmd>Telescope grep_string<cr>", desc = "Grep word under cursor" },
+      { "<leader>fg", function() require("telescope.builtin").live_grep({ cwd = git_root() }) end, desc = "Grep project" },
+      -- deliberate wide search from wherever :pwd is — the unscoped variant
+      { "<leader>fG", "<cmd>Telescope live_grep<cr>", desc = "Grep from cwd (wide)" },
+      { "<leader>fc", function() require("telescope.builtin").grep_string({ cwd = git_root() }) end, desc = "Grep word under cursor" },
       { "<leader>fb", "<cmd>Telescope buffers<cr>", desc = "Buffers" },
       { "<leader>fr", "<cmd>Telescope registers<cr>", desc = "Registers" },
       { "<leader>fm", "<cmd>Telescope marks<cr>", desc = "Marks" },
@@ -103,7 +114,7 @@ return {
 
       -- lvim's <leader>s* search group, so both sets of fingers work
       { "<leader>sf", "<cmd>Telescope find_files<cr>", desc = "Find files" },
-      { "<leader>st", "<cmd>Telescope live_grep<cr>", desc = "Grep text" },
+      { "<leader>st", function() require("telescope.builtin").live_grep({ cwd = git_root() }) end, desc = "Grep text" },
       { "<leader>sb", "<cmd>Telescope buffers<cr>", desc = "Buffers" },
       { "<leader>sh", "<cmd>Telescope help_tags<cr>", desc = "Help" },
       { "<leader>sk", "<cmd>Telescope keymaps<cr>", desc = "Keymaps" },
