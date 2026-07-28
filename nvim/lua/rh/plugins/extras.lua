@@ -467,10 +467,22 @@ return {
       "Shatur/neovim-session-manager",
     },
     opts = {
-      projects = {
-        "~/code/*",
-        "~/configs",
-      },
+      -- neovim-project resolves a cwd to its DEEPEST registered ancestor.
+      -- With only "~/code/*", a nested work repo (~/code/org/team/<repo>)
+      -- resolves to ~/code/<org> — wrong root, wrong (shared) session. So
+      -- also register every real nested git repo; being deeper, they win.
+      projects = (function()
+        local pats = { "~/code/*", "~/configs" }
+        for _, depth in ipairs({ "*/*", "*/*/*" }) do
+          for _, gitdir in ipairs(vim.fn.glob("~/code/" .. depth .. "/.git", true, true)) do
+            local dir = vim.fn.fnamemodify(gitdir, ":h")
+            if not dir:find("/node_modules/", 1, true) then
+              pats[#pats + 1] = dir
+            end
+          end
+        end
+        return pats
+      end)(),
       picker = { type = "telescope" },
       last_session_on_startup = false,
     },
