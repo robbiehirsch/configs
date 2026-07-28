@@ -26,7 +26,13 @@ else
       # the parent dirs themselves are also valid targets (e.g. ~/configs)
       printf '%s\n' "${search_dirs[@]}"
       find "${search_dirs[@]}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null
-    } | sed "s|^$HOME|~|" | sort -u | fzf --prompt='project> ' --height=100% --reverse
+      # nested repos too (e.g. ~/code/ORG/TEAM/<repo>): anything holding a
+      # .git up to ~4 levels down. node_modules is pruned; .git may be a dir
+      # or a file (worktrees/submodules), so no -type filter.
+      find "${search_dirs[@]}" -mindepth 2 -maxdepth 5 -name node_modules -prune -o -name '.git' -prune -print 2>/dev/null \
+        | sed 's|/\.git$||'
+    } | sed "s|^$HOME|~|" | sort -u | fzf --prompt='project> ' --height=100% --reverse \
+        --preview 'd={}; d="${d/#\~/$HOME}"; ls -1A "$d" | head -40' --preview-window=right,35%
   )
   selected="${selected/#\~/$HOME}"
 fi
