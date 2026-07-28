@@ -349,9 +349,9 @@ return {
       task_list = { direction = "bottom", min_height = 12 },
     },
     keys = {
-      { "<leader>or", "<cmd>OverseerRun<cr>", desc = "Run task" },
+      { "<leader>or", "<cmd>OverseerRun<cr>", desc = "Run task (npm scripts / make / vscode tasks)" },
       { "<leader>ot", "<cmd>OverseerToggle<cr>", desc = "Task list" },
-      { "<leader>oc", "<cmd>OverseerShell<cr>", desc = "Run shell command" },
+      { "<leader>oc", "<cmd>OverseerShell<cr>", desc = "Run shell command as a task" },
       { "<leader>oa", "<cmd>OverseerTaskAction<cr>", desc = "Task action" },
     },
   },

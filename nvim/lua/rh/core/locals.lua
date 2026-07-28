@@ -26,6 +26,10 @@ map("n", "<leader>rh", "<cmd>CurlmanHistory<cr>", { desc = "History" })
 map("n", "<leader>rs", "<cmd>CurlmanSave<cr>", { desc = "Save response" })
 map("n", "<leader>rf", "<cmd>Telescope curlman requests<cr>", { desc = "Find request" })
 map("n", "<leader>rH", "<cmd>Telescope curlman history<cr>", { desc = "History search" })
+map("n", "<leader>rw", "<cmd>CurlmanRunWith<cr>", { desc = "Run across profiles (compare)" })
+map("n", "<leader>rP", "<cmd>CurlmanProfiles<cr>", { desc = "Manage profiles" })
+map("n", "<leader>rv", "<cmd>CurlmanProfileSave<cr>", { desc = "Save vars as profile" })
+map("n", "<leader>rF", "<cmd>CurlmanFav<cr>", { desc = "Favourite endpoint" })
 
 -- Setup now happens in the curlman.nvim plugin spec (lua/rh/plugins/lang.lua),
 -- which calls require("curlman").setup() on VeryLazy. Nothing to defer here.

@@ -32,6 +32,7 @@ SECTIONS = [
     (r"^<leader>n", "Node swap"),
     (r"^<leader>T", "Treesitter"),
     (r"^<leader>a", "AWS / AI"),
+    (r"^<leader>b", "Buffers / Tree"),
     (r"^<leader><tab>", "Tabs"),
     (r"^<leader>", "Leader (misc)"),
     (r"^g", "Goto / LSP / Comment"),

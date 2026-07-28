@@ -19,5 +19,5 @@ for r in "${REPOS[@]}"; do
     printf '   skipped: uncommitted changes (cfgpush or stash first)\n'
     continue
   fi
-  git -C "$r" pull --rebase --autostash=false || printf '   pull FAILED\n'
+  git -C "$r" pull --rebase || printf '   pull FAILED\n'
 done

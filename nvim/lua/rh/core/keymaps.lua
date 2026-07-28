@@ -37,6 +37,14 @@ local function close_buffer()
 end
 map("n", "<leader>c", close_buffer, { desc = "Close buffer" })
 map("n", "<S-x>", close_buffer, { desc = "Close buffer" })
+map("n", "<leader>bo", function()
+  -- "buffer only": close every other buffer, keep this one and the layout
+  if _G.Snacks and Snacks.bufdelete then
+    Snacks.bufdelete.other()
+  else
+    vim.cmd("%bd|e#|bd#") -- fallback: wipe all, reopen last, drop the [No Name]
+  end
+end, { desc = "Close all buffers but this one" })
 
 -- lvim buffer cycling
 map("n", "<S-l>", "<cmd>bnext<CR>", { desc = "Next buffer" })
