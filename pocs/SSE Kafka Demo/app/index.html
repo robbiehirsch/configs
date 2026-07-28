@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kafka → Redis → SSE → React/Redux — system walkthrough</title>
+<style>
+/* ═══════════════ TOKENS ═══════════════ */
+:root{
+  --bg:#0A0B0D; --surface:#121316; --surface2:#181A1E; --line:#262A31; --line2:#31363f;
+  --text:#FBFBFB; --muted:#B8BCC4; --faint:#69707A;
+  --signal:#FF9E40; --blue:#5FA8C7; --amber:#D9A24A; --red:#D85C46; --green:#6FBF8B; --violet:#9C8BD0; --cyan:#61DAFB;
+  --kafka:#9C8BD0; --redis:#D85C46; --api:#FF9E40; --sse:#5FA8C7; --react:#61DAFB;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --ease:cubic-bezier(.22,1,.36,1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden}
+::selection{background:rgba(255,158,64,.35)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#2a2f37;border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ═══════════════ DECK CHROME ═══════════════ */
+#deck{height:100vh;overflow-y:auto;scroll-snap-type:y mandatory;scroll-behavior:smooth}
+.slide{min-height:100vh;scroll-snap-align:start;scroll-snap-stop:always;position:relative;
+  padding:64px 72px 72px;display:flex;flex-direction:column;overflow:hidden auto}
+#progress{position:fixed;top:0;left:0;height:2px;background:var(--signal);width:0;z-index:50;
+  box-shadow:0 0 12px rgba(255,158,64,.6);transition:width .12s linear}
+#dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:10px}
+#dots a{width:9px;height:9px;border-radius:50%;background:#2c313a;display:block;position:relative;transition:background .2s,transform .2s}
+#dots a.on{background:var(--signal);transform:scale(1.35);box-shadow:0 0 10px rgba(255,158,64,.7)}
+#dots a span{position:absolute;right:20px;top:50%;transform:translateY(-50%);white-space:nowrap;font:10.5px var(--mono);
+  color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:3px 8px;border-radius:5px;
+  opacity:0;pointer-events:none;transition:opacity .15s}
+#dots a:hover span{opacity:1}
+#counter{position:fixed;left:22px;bottom:16px;z-index:50;font:11px var(--mono);color:var(--faint);letter-spacing:.12em}
+#keys-hint{position:fixed;right:22px;bottom:16px;z-index:50;font:10.5px var(--mono);color:var(--faint)}
+#keys-hint b{color:var(--muted);font-weight:600}
+@media(max-width:900px){#dots{display:none}.slide{padding:48px 22px 60px}}
+
+/* ═══════════════ TYPOGRAPHY / SHARED ═══════════════ */
+.kicker{font:11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--signal);margin:0 0 14px}
+.kicker::before{content:"";display:inline-block;width:26px;height:1px;background:var(--signal);vertical-align:middle;margin-right:10px;opacity:.7}
+h1{font-size:clamp(38px,5.6vw,72px);line-height:1.02;letter-spacing:-.025em;margin:0 0 18px;font-weight:720}
+h2{font-size:clamp(26px,3.2vw,40px);line-height:1.08;letter-spacing:-.02em;margin:0 0 10px;font-weight:680;max-width:22ch}
+.lede{color:var(--muted);font-size:clamp(13.5px,1.3vw,16px);line-height:1.6;max-width:72ch;margin:0 0 26px}
+.lede b{color:var(--text);font-weight:600}
+.grad{background:linear-gradient(92deg,var(--signal) 10%,#ffc78f 55%,var(--signal) 90%);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}.faint{color:var(--faint)}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);border-radius:20px;
+  padding:4px 12px;font:11px var(--mono);color:var(--muted);background:var(--surface)}
+.chip i{width:6px;height:6px;border-radius:50%;background:var(--signal);display:inline-block}
+.grid-overlay{position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:56px 56px;animation:grid-pan 40s linear infinite}
+@keyframes grid-pan{to{background-position:56px 56px}}
+.num-badge{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;
+  background:var(--surface2);border:1px solid var(--line2);font:10.5px var(--mono);color:var(--muted);flex:none}
+
+/* code blocks */
+pre.code{margin:0;background:var(--surface2);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;font:11.5px/1.65 var(--mono);color:#cfe0f2;overflow:auto;white-space:pre}
+.code .c{color:var(--faint)}.code .k{color:#9fd0ff}.code .s{color:#ffc78f}.code .n{color:var(--green)}
+.code .f{color:var(--violet)}.code .t{color:var(--cyan)}
+.code .hl{background:rgba(255,158,64,.13);display:block;margin:0 -14px;padding:0 14px;border-left:2px solid var(--signal)}
+.code .hl2{background:rgba(97,218,251,.10);display:block;margin:0 -14px;padding:0 14px;border-left:2px solid var(--cyan)}
+
+/* buttons + transport controls */
+.btn{border:1px solid var(--line2);background:var(--surface);color:var(--text);border-radius:8px;
+  padding:7px 13px;font:12px var(--sans);cursor:pointer;transition:border-color .15s,background .15s}
+.btn:hover{border-color:#4a515d;background:var(--surface2)}
+.btn.primary{background:var(--signal);border-color:var(--signal);color:#22160a;font-weight:650}
+.btn.primary:hover{background:#ffae5c}
+.btn.warn{border-color:#5a3030;color:#ff9d8f}
+.transport{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.transport .seg{display:flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.transport .seg button{border:none;background:var(--surface);color:var(--muted);font:11px var(--mono);
+  padding:7px 11px;cursor:pointer}
+.transport .seg button.on{background:var(--signal);color:#22160a;font-weight:700}
+.transport .stat{font:11px var(--mono);color:var(--faint);margin-left:6px}
+
+/* legend */
+.legend{display:flex;gap:14px;flex-wrap:wrap;font:10.5px var(--mono);color:var(--muted)}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px;vertical-align:-1px}
+
+/* ═══════════════ SLIDE 1 — TITLE ═══════════════ */
+#s1{justify-content:center}
+#s1 .pipeline{display:flex;align-items:center;gap:0;margin:44px 0 34px;position:relative;max-width:980px}
+#s1 .pnode{border:1px solid var(--line2);background:var(--surface);border-radius:10px;padding:12px 16px;
+  font:12px var(--mono);letter-spacing:.06em;position:relative;z-index:1;text-align:center;min-width:118px}
+#s1 .pnode small{display:block;color:var(--faint);font-size:9.5px;margin-top:3px;letter-spacing:.14em}
+#s1 .plink{flex:1;height:1px;background:var(--line2);position:relative;min-width:34px}
+#s1 .plink::after{content:"›";position:absolute;right:-4px;top:-9px;color:var(--faint);font-size:13px}
+#s1 .packet{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;background:var(--signal);
+  box-shadow:0 0 14px 3px rgba(255,158,64,.55);transform:translate(-50%,-50%);z-index:2;left:0;
+  animation:s1travel 7s var(--ease) infinite}
+@keyframes s1travel{0%{left:2%;opacity:0}6%{opacity:1}94%{opacity:1}100%{left:98%;opacity:0}}
+#s1 .meta{display:flex;gap:10px;flex-wrap:wrap}
+@media(prefers-reduced-motion:reduce){#s1 .packet,.grid-overlay{animation:none}}
+
+/* ═══════════════ SLIDE 2 — ARCHITECTURE ═══════════════ */
+.arch-wrap{display:grid;grid-template-columns:1fr 320px;gap:22px;flex:1;min-height:0}
+.arch-stage{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden;min-height:480px}
+.arch-stage svg{width:100%;height:100%;display:block}
+.anode{cursor:pointer}
+.anode rect{fill:var(--surface2);stroke:var(--line2);stroke-width:1;transition:stroke .2s,filter .2s}
+.anode:hover rect{stroke:#4a515d}
+.anode.sel rect{stroke:var(--signal);filter:drop-shadow(0 0 8px rgba(255,158,64,.35))}
+.anode text{fill:var(--text);font:12.5px var(--sans);font-weight:600}
+.anode .sub{fill:var(--faint);font:9.5px var(--mono);font-weight:400;letter-spacing:.08em}
+.anode .tag{fill:var(--faint);font:8.5px var(--mono);letter-spacing:.14em}
+.aedge{fill:none;stroke:var(--line2);stroke-width:1.4}
+.aedge.hot{stroke:var(--signal);stroke-opacity:.55}
+.arch-detail{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:20px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.arch-detail h3{margin:0;font-size:17px;letter-spacing:-.01em}
+.arch-detail .role{font:10px var(--mono);letter-spacing:.18em;text-transform:uppercase}
+.arch-detail p{margin:0;color:var(--muted);font-size:13px;line-height:1.65}
+.arch-detail ul{margin:0;padding-left:18px;color:var(--muted);font-size:12.5px;line-height:1.7}
+.arch-detail ul b{color:var(--text);font-weight:600}
+.arch-why{border-top:1px solid var(--line);padding-top:12px}
+.apkt{pointer-events:none}
+</style>
+<style>
+/* ═══════════════ SLIDE 3 — FAN-IN ═══════════════ */
+.fanin{display:grid;grid-template-columns:1.05fr .95fr;gap:22px;flex:1;min-height:0}
+.lanes{display:flex;flex-direction:column;gap:12px;position:relative}
+.lane{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 14px;position:relative;transition:border-color .3s}
+.lane.active{border-color:var(--kafka);box-shadow:0 0 0 1px rgba(156,139,208,.35),0 0 22px rgba(156,139,208,.12)}
+.lane-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.lane-head .topic{font:11.5px var(--mono);color:var(--kafka);letter-spacing:.06em}
+.lane-head .svc{font:10px var(--mono);color:var(--faint)}
+.lane-head button{margin-left:auto}
+.lane pre.code{font-size:10.5px;padding:9px 11px}
+.redis-panel{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.redis-panel h4{margin:0;font:11px var(--mono);letter-spacing:.2em;color:var(--redis);text-transform:uppercase}
+.rkey{border:1px solid var(--line2);border-radius:9px;padding:9px 12px;background:var(--surface2);transition:box-shadow .4s,border-color .4s}
+.rkey.hit{border-color:var(--redis);box-shadow:0 0 16px rgba(216,92,70,.35)}
+.rkey .rk{font:11px var(--mono);color:#ff9d8f;margin-bottom:4px}
+.rkey .rv{font:11px var(--mono);color:var(--muted);white-space:pre-wrap;word-break:break-word}
+.rchan{border:1px dashed var(--line2);border-radius:9px;padding:9px 12px;font:11px var(--mono);color:var(--muted);transition:all .3s}
+.rchan.hit{border-color:var(--signal);color:var(--signal);box-shadow:0 0 14px rgba(255,158,64,.25)}
+.envbox{border:1px solid var(--signal);border-radius:10px;background:rgba(255,158,64,.06);padding:10px 12px;font:10.5px var(--mono);color:#ffc78f;white-space:pre-wrap;word-break:break-word;min-height:66px}
+.fly{position:fixed;z-index:40;pointer-events:none;font:10px var(--mono);padding:5px 9px;border-radius:7px;
+  background:var(--surface2);border:1px solid var(--kafka);color:var(--text);white-space:nowrap;
+  box-shadow:0 4px 18px rgba(0,0,0,.5);transition:none}
+.fly.redis{border-color:var(--redis)}.fly.signal{border-color:var(--signal);color:#ffc78f}
+.fly.sse{border-color:var(--sse)}.fly.react{border-color:var(--react)}
+
+/* ═══════════════ SLIDE 4 — FILTER GATE ═══════════════ */
+.gate-wrap{display:grid;grid-template-columns:250px 1fr 300px;gap:18px;flex:1;min-height:0}
+.subs{display:flex;flex-direction:column;gap:12px}
+.sub{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 14px}
+.sub h4{margin:0 0 2px;font-size:13px}
+.sub .sid{font:9.5px var(--mono);color:var(--faint);letter-spacing:.14em;margin-bottom:8px}
+.sub label{display:flex;align-items:center;gap:7px;font:11px var(--mono);color:var(--muted);padding:2.5px 0;cursor:pointer}
+.sub input[type=checkbox]{accent-color:var(--signal)}
+.sub select{background:var(--surface2);color:var(--muted);border:1px solid var(--line2);border-radius:6px;font:10.5px var(--mono);padding:2px 5px;margin-left:4px}
+.gate-stage{border:1px solid var(--line);border-radius:12px;background:var(--surface);position:relative;overflow:hidden;display:flex;flex-direction:column}
+.gate-canvas{flex:1;position:relative;min-height:340px}
+.gate-node{position:absolute;transform:translate(-50%,-50%);text-align:center;z-index:2}
+.gate-node .gn-box{border:1px solid var(--line2);background:var(--surface2);border-radius:9px;padding:8px 12px;font:10.5px var(--mono);color:var(--muted)}
+.gate-node .gn-box b{display:block;color:var(--text);font-size:11px;margin-bottom:2px}
+.gpkt{position:absolute;transform:translate(-50%,-50%);z-index:3;font:9.5px var(--mono);padding:3px 8px;border-radius:6px;
+  background:var(--surface2);border:1px solid var(--amber);color:var(--text);white-space:nowrap;transition:opacity .35s}
+.gpkt.pass{border-color:var(--green);box-shadow:0 0 12px rgba(111,191,139,.45)}
+.gpkt.drop{border-color:#3a3f48;color:var(--faint);opacity:.35;text-decoration:line-through}
+.sse-logs{display:flex;flex-direction:column;gap:12px;min-height:0}
+.sse-log{border:1px solid var(--line);border-radius:12px;background:var(--surface);display:flex;flex-direction:column;min-height:0;flex:1}
+.sse-log h5{margin:0;padding:9px 12px;border-bottom:1px solid var(--line);font:10px var(--mono);letter-spacing:.16em;color:var(--sse);text-transform:uppercase}
+.sse-log .body{flex:1;overflow-y:auto;padding:8px 10px;font:10px var(--mono);display:flex;flex-direction:column;gap:5px}
+.sse-log .frame{background:var(--surface2);border:1px solid var(--line);border-left:2px solid var(--sse);border-radius:6px;
+  padding:5px 8px;color:var(--muted);white-space:pre-wrap;word-break:break-word;animation:frameIn .3s var(--ease)}
+@keyframes frameIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1}}
+.gate-stats{display:flex;gap:16px;font:11px var(--mono);color:var(--muted);padding:10px 2px 0}
+.gate-stats b{color:var(--signal);font-weight:700}
+
+/* ═══════════════ STEPPER (slides 5 & 6) ═══════════════ */
+.stepper-wrap{display:grid;grid-template-columns:1fr 330px;gap:22px;flex:1;min-height:0}
+.stepper-left{display:flex;flex-direction:column;gap:14px;min-height:0}
+.rail{height:3px;background:var(--line);border-radius:2px;position:relative;overflow:hidden}
+.rail i{position:absolute;inset:0;background:var(--signal);transform-origin:left;transform:scaleX(0);box-shadow:0 0 10px rgba(255,158,64,.6)}
+.stages{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;position:relative}
+.stage{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:10px 11px;position:relative;
+  transition:border-color .25s,box-shadow .25s;min-height:86px}
+.stage .st-num{position:absolute;top:-9px;left:10px;background:var(--bg);padding:0 6px;font:9.5px var(--mono);color:var(--faint)}
+.stage h5{margin:4px 0 3px;font-size:12px;letter-spacing:-.01em}
+.stage p{margin:0;font:9.8px/1.5 var(--mono);color:var(--faint)}
+.stage.done{border-color:var(--line2)}
+.stage.done h5{color:var(--muted)}
+.stage.active{border-color:var(--sc,var(--signal));box-shadow:0 0 0 1px color-mix(in srgb,var(--sc,var(--signal)) 45%,transparent),0 0 22px color-mix(in srgb,var(--sc,var(--signal)) 18%,transparent)}
+.stage.active .st-num{color:var(--sc,var(--signal))}
+.stage-dot{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--signal);z-index:5;
+  box-shadow:0 0 16px 4px rgba(255,158,64,.55);transform:translate(-50%,-50%);pointer-events:none;transition:opacity .3s}
+.stage-dot .lbl{position:absolute;top:16px;left:50%;transform:translateX(-50%);font:9px var(--mono);color:#ffc78f;white-space:nowrap;
+  background:rgba(10,11,13,.85);padding:2px 6px;border-radius:4px;border:1px solid rgba(255,158,64,.4)}
+.inspector{border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.inspector header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px}
+.inspector header b{font-size:13px}
+.inspector header span{font:9.5px var(--mono);letter-spacing:.16em;text-transform:uppercase}
+.inspector .body{padding:12px 14px;overflow-y:auto;flex:1}
+.inspector pre.code{border:none;background:transparent;padding:0;font-size:11px}
+.inspector .note{padding:10px 16px;border-top:1px solid var(--line);font:11px/1.6 var(--sans);color:var(--muted)}
+.step-log{display:flex;gap:6px;flex-wrap:wrap;font:9.5px var(--mono)}
+.step-log span{border:1px solid var(--line);border-radius:5px;padding:3px 8px;color:var(--faint)}
+.step-log span.hit{color:var(--signal);border-color:rgba(255,158,64,.4)}
+.step-takeaway{margin-top:auto;border-left:2px solid var(--signal);padding:10px 16px;background:rgba(255,158,64,.05);
+  border-radius:0 10px 10px 0;font-size:12.5px;color:var(--muted);line-height:1.6;max-width:78ch}
+.step-takeaway b{color:var(--text)}
+@media(max-width:1100px){.stages{grid-template-columns:repeat(2,1fr)}.stepper-wrap,.arch-wrap,.fanin,.gate-wrap{grid-template-columns:1fr}}
+</style>
+<style>
+/* ═══════════════ SLIDE 7 — CLIENT WIRING ═══════════════ */
+.wire-wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:22px;flex:1;min-height:0}
+.code-stack{display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;padding-right:4px}
+.code-card{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;flex:none}
+.code-card>header{padding:8px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;
+  font:10px var(--mono);letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
+.code-card>header i{width:8px;height:8px;border-radius:50%;background:var(--lc,var(--signal))}
+.code-card pre.code{border:none;border-radius:0;background:transparent;font-size:10.8px}
+.code-card pre.code .hl,.code-card pre.code .hl2{transition:background .3s}
+
+/* mock UI (slides 7 & 8 share) */
+.mockui{border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.mockui>header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.mockui>header .url{font:10px var(--mono);color:var(--faint);background:var(--surface2);border:1px solid var(--line);
+  border-radius:6px;padding:3px 10px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mockui .body{padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.mrow{display:flex;gap:10px;flex-wrap:wrap}
+.mcard{flex:1;min-width:120px;border:1px solid var(--line2);border-radius:10px;background:var(--surface2);
+  padding:10px 12px;position:relative;transition:box-shadow .45s,border-color .45s}
+.mcard.rendered{border-color:var(--react);box-shadow:0 0 0 2px rgba(97,218,251,.4),0 0 18px rgba(97,218,251,.2)}
+.mcard .meter{position:absolute;top:7px;right:9px;font:9px var(--mono);color:var(--faint);background:rgba(0,0,0,.3);
+  border-radius:12px;padding:1px 7px;font-variant-numeric:tabular-nums}
+.mcard h6{margin:0 0 6px;font:9px var(--mono);letter-spacing:.1em;color:var(--faint);text-transform:uppercase;font-weight:500}
+.mcard .big{font-size:19px;font-weight:650}
+.mbadge{display:inline-block;background:var(--amber);color:#3a2c05;font-weight:700;font-size:10.5px;letter-spacing:.06em;
+  padding:2px 9px;border-radius:14px}
+.mbadge.off{background:#2a2f37;color:var(--faint)}
+.mtable{border:1px solid var(--line2);border-radius:10px;background:var(--surface2);padding:10px 12px;position:relative;transition:box-shadow .45s,border-color .45s}
+.mtable.rendered{border-color:var(--react);box-shadow:0 0 0 2px rgba(97,218,251,.4)}
+.mtable table{width:100%;border-collapse:collapse;font:10.5px var(--mono)}
+.mtable th,.mtable td{text-align:left;padding:3px 8px;border-bottom:1px solid var(--line);color:var(--muted)}
+.mtable th{color:var(--faint);font-size:8.5px;letter-spacing:.12em}
+.mtable tr.flash td{animation:rowFlash 1.1s ease-out}
+@keyframes rowFlash{from{background:rgba(111,191,139,.35)}to{background:transparent}}
+.mtoasts{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:20;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.mtoast{padding:7px 14px;border-radius:8px;font-size:11.5px;font-weight:600;color:#10131a;box-shadow:0 8px 22px rgba(0,0,0,.45);animation:toastIn .25s var(--ease)}
+.mtoast.info{background:var(--blue)}.mtoast.success{background:var(--green)}.mtoast.warn{background:var(--red);color:#fff}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1}}
+.mock-controls{display:flex;gap:7px;flex-wrap:wrap}
+.mock-controls .btn{padding:5px 10px;font-size:11px}
+.devlog{border:1px solid var(--line);border-radius:10px;background:#0d0f12;font:9.8px/1.6 var(--mono);padding:8px 10px;
+  max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.devlog .dl{padding:3px 7px;border-radius:5px;background:var(--surface2);color:var(--muted);white-space:pre-wrap;word-break:break-word}
+.devlog .dl b{font-weight:700}
+.devlog .dl.ent b{color:var(--amber)}.devlog .dl.kv b{color:var(--violet)}.devlog .dl.tab b{color:var(--green)}
+.devlog .dl.frame{color:var(--sse)}
+.devlog .ts{color:#4a515d;margin-right:6px}
+
+/* ═══════════════ SLIDE 8 — END TO END ═══════════════ */
+.e2e-wrap{display:grid;grid-template-columns:1fr 380px;gap:22px;flex:1;min-height:0}
+.e2e-left{display:flex;flex-direction:column;gap:14px;min-height:0}
+.e2e-track{border:1px solid var(--line);border-radius:14px;background:var(--surface);position:relative;flex:none;height:210px;overflow:hidden}
+.e2e-node{position:absolute;transform:translate(-50%,-50%);text-align:center;z-index:2}
+.e2e-node .en-box{border:1px solid var(--line2);background:var(--surface2);border-radius:10px;padding:9px 13px;
+  font:10px var(--mono);color:var(--muted);transition:box-shadow .3s,border-color .3s}
+.e2e-node .en-box b{display:block;color:var(--text);font:11.5px var(--sans);margin-bottom:2px}
+.e2e-node.pulse .en-box{border-color:var(--nc,var(--signal));box-shadow:0 0 0 1px color-mix(in srgb,var(--nc,var(--signal)) 50%,transparent),0 0 20px color-mix(in srgb,var(--nc,var(--signal)) 22%,transparent)}
+.e2e-edge{position:absolute;height:1px;background:var(--line2);transform-origin:left;z-index:1}
+.e2e-pkt{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--signal);z-index:3;
+  box-shadow:0 0 14px 4px rgba(255,158,64,.5);transform:translate(-50%,-50%)}
+.e2e-stats{display:flex;gap:22px;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 18px}
+.e2e-stat .v{font:22px/1.1 var(--mono);font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+.e2e-stat .l{font:9.5px var(--mono);color:var(--faint);letter-spacing:.14em;text-transform:uppercase;margin-top:3px}
+.e2e-stat .v.sig{color:var(--signal)}
+
+/* ═══════════════ SLIDE 9 — COMPANION DEMO ═══════════════ */
+.demo-frame{flex:1;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#eef1f5;min-height:0;position:relative}
+.demo-frame iframe{width:100%;height:100%;border:0;display:block;background:#eef1f5}
+.demo-note{display:flex;gap:10px;align-items:center;margin:0 0 14px;font-size:12.5px;color:var(--muted)}
+.demo-note .chip{flex:none}
+
+/* ═══════════════ SLIDE 10 — RECAP ═══════════════ */
+.recap{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;max-width:1150px}
+.take{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:16px 18px;display:flex;gap:14px}
+.take .num-badge{width:26px;height:26px;font-size:12px;color:var(--signal);border-color:rgba(255,158,64,.4)}
+.take h4{margin:1px 0 5px;font-size:14px}
+.take p{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+.take p code{font:10.5px var(--mono);color:#9fd0ff;background:var(--surface2);padding:1px 5px;border-radius:4px}
+@media(max-width:1100px){.wire-wrap,.e2e-wrap{grid-template-columns:1fr}.recap{grid-template-columns:1fr}}
+
+/* paused ambient */
+.paused .ambient{animation-play-state:paused!important}
+@media(prefers-reduced-motion:reduce){
+  #s1 .packet,.grid-overlay{animation:none!important}
+}
+
+/* ═══════════════ SLIDE 2 — TRANSPORT LANES ═══════════════ */
+#tp-lanes{display:flex;flex-direction:column;gap:9px}
+.tp-lane{display:grid;grid-template-columns:175px 1fr 200px;gap:12px;align-items:center;
+  border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:7px 14px}
+.tl-head b{font-size:12.5px;display:block;letter-spacing:-.01em}
+.tl-head span{font:9.5px var(--mono);color:var(--faint)}
+.tl-track{position:relative;height:42px}
+.tl-line{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line2)}
+.tl-hold{position:absolute;left:34px;right:34px;top:50%;height:1px;opacity:0;transition:opacity .3s}
+.tl-hold.on{opacity:1;animation:holdPulse 1.1s linear infinite;
+  background:repeating-linear-gradient(90deg,var(--amber) 0 6px,transparent 6px 12px)}
+.tl-hold.sse{background:repeating-linear-gradient(90deg,var(--sse) 0 6px,transparent 6px 12px)}
+.tl-hold.ws{background:repeating-linear-gradient(90deg,var(--violet) 0 6px,transparent 6px 12px)}
+@keyframes holdPulse{to{background-position:12px 0}}
+.tl-end{position:absolute;top:50%;transform:translateY(-50%);font:8px var(--mono);color:var(--faint);
+  border:1px solid var(--line2);background:var(--surface2);border-radius:5px;padding:2px 6px;z-index:2}
+.tl-end.c{left:0}.tl-end.s{right:0}
+.tl-note{position:absolute;left:50%;top:1px;transform:translateX(-50%);font:9px var(--mono);color:var(--muted);white-space:nowrap}
+.tl-pkt{position:absolute;top:55%;transform:translate(-50%,-50%);z-index:3;pointer-events:none}
+.tl-pkt i{display:block;width:8px;height:8px;border-radius:50%;background:#555;margin:0 auto}
+.tl-pkt span{position:absolute;bottom:11px;left:50%;transform:translateX(-50%);font:8px var(--mono);color:var(--muted);white-space:nowrap}
+.tl-pkt.req i{background:var(--blue)}
+.tl-pkt.res-empty i{background:#3a3f48}
+.tl-pkt.res-data i{background:var(--green);box-shadow:0 0 9px rgba(111,191,139,.7)}
+.tl-pkt.evt i{background:var(--sse);box-shadow:0 0 9px rgba(95,168,199,.7)}
+.tl-pkt.frame-up i{background:var(--violet)}
+.tl-stats{font:10px var(--mono);color:var(--faint);text-align:right}
+.tl-stats b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* transport comparison table */
+.tport-table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:14px}
+.tport-table th,.tport-table td{border:1px solid var(--line);padding:6px 11px;text-align:left}
+.tport-table th{font:9px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);background:var(--surface)}
+.tport-table td{color:var(--muted);background:var(--surface);font-size:11px;line-height:1.45}
+.tport-table td.rowh{font:9px var(--mono);color:var(--faint);letter-spacing:.1em;white-space:nowrap}
+.tport-table .hl-col{background:rgba(95,168,199,.09)}
+.tport-table td.hl-col{color:var(--text)}
+.tport-table th.hl-col{color:var(--sse)}
+.tport-table td b,.tport-table th b{color:inherit}
+
+/* ═══════════════ SLIDE 3 — WHY SSE / DUO DEMO ═══════════════ */
+.why-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px}
+.why{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:13px 15px}
+.why .num-badge{color:var(--sse);border-color:rgba(95,168,199,.45)}
+.why h4{margin:9px 0 6px;font-size:13.5px;letter-spacing:-.01em}
+.why p{margin:0;font-size:11.5px;line-height:1.65;color:var(--muted)}
+.why p code{font:10px var(--mono);color:#9fd0ff;background:var(--surface2);padding:1px 5px;border-radius:4px}
+.duo{display:grid;grid-template-columns:1.15fr .85fr;gap:13px;flex:1;min-height:0}
+.duo-panel{border:1px solid var(--line);border-radius:12px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.duo-panel>header{padding:8px 13px;border-bottom:1px solid var(--line);font:9.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.duo-panel.ssep{border-color:rgba(95,168,199,.4)}
+.duo-panel.ssep>header{color:var(--sse)}
+.duo-panel pre.code{flex:1;border:none;background:transparent;font-size:10.3px;padding:10px 13px}
+.duo-panel pre.code .ln{display:block;border-left:2px solid transparent;padding-left:6px;margin-left:-8px;transition:background .25s}
+.duo-panel pre.code .ln.scan{background:rgba(217,164,74,.13);border-left-color:var(--amber)}
+.duo-panel pre.code .ln.found{background:rgba(111,191,139,.15);border-left-color:var(--green)}
+.duo-status{border-top:1px solid var(--line);padding:8px 13px;font:10.5px var(--mono);color:var(--muted);min-height:33px;line-height:1.5}
+.duo-status b{color:var(--signal);font-weight:700}
+@media(max-width:1100px){.tp-lane{grid-template-columns:130px 1fr 150px}.why-cards,.duo{grid-template-columns:1fr}}
+
+/* ═══════════════ PACE CONTROL (speed slider + click-to-step) ═══════════════ */
+.pace{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line2);border-radius:8px;
+  padding:5px 11px;background:var(--surface)}
+.pace .pace-lbl{font:9px var(--mono);color:var(--faint);letter-spacing:.14em}
+.pace-sliderwrap{display:flex;flex-direction:column;gap:0}
+.pace input[type=range]{-webkit-appearance:none;appearance:none;width:112px;height:3px;margin:7px 0 2px;
+  background:linear-gradient(90deg,var(--signal) var(--fill,100%),var(--line2) var(--fill,100%));
+  border-radius:2px;outline:none;cursor:pointer}
+.pace input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--signal);box-shadow:0 0 8px rgba(255,158,64,.6);cursor:pointer}
+.pace input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;
+  background:var(--signal);cursor:pointer}
+.pace-ticks{display:flex;justify-content:space-between;width:112px;font:8px var(--mono);color:var(--faint)}
+.pace-ticks i{font-style:normal}
+.pace-val{font:10.5px var(--mono);color:var(--muted);min-width:36px;text-align:right;font-variant-numeric:tabular-nums}
+.pace .btn{padding:4px 10px;font-size:10.5px}
+.pace-mode.on{background:var(--signal);border-color:var(--signal);color:#22160a;font-weight:650}
+.pace-step:disabled{opacity:.35;cursor:default}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<nav id="dots" aria-label="slides"></nav>
+<div id="counter" class="mono">01 / 12</div>
+<div id="keys-hint"><b>← →</b> navigate &nbsp;·&nbsp; <b>P</b> pause motion &nbsp;·&nbsp; <b>F</b> fullscreen</div>
+<div id="deck">
+<!-- ════════════ SLIDE 1 · TITLE ════════════ -->
+<section class="slide" id="s1" data-title="Title">
+  <div class="grid-overlay"></div>
+  <p class="kicker">Internal tech talk · streaming UI architecture</p>
+  <h1>Many Kafkas, one Redis,<br><span class="grad">one stream to the UI.</span></h1>
+  <p class="lede">How we fan <b>multiple Kafka topics</b> into a <b>single Redis database</b>, aggregate and
+  <b>filter per subscriber</b> in the API, push the survivors over <b>one SSE connection</b>, and land them in
+  <b>React/Redux</b> — one update at a time, or many at once.</p>
+  <div class="pipeline">
+    <div class="pnode" style="border-color:rgba(156,139,208,.5)">KAFKA<small>×N TOPICS</small></div>
+    <div class="plink"></div>
+    <div class="pnode" style="border-color:rgba(216,92,70,.5)">REDIS<small>SINGLE DB</small></div>
+    <div class="plink"></div>
+    <div class="pnode" style="border-color:rgba(255,158,64,.5)">API<small>AGGREGATE · FILTER</small></div>
+    <div class="plink"></div>
+    <div class="pnode" style="border-color:rgba(95,168,199,.5)">SSE<small>1 CONNECTION</small></div>
+    <div class="plink"></div>
+    <div class="pnode" style="border-color:rgba(97,218,251,.5)">REACT / REDUX<small>HOOK → STORE</small></div>
+    <div class="packet ambient"></div>
+  </div>
+  <div class="meta">
+    <span class="chip"><i></i>standalone HTML · zero dependencies · works offline</span>
+    <span class="chip"><i style="background:var(--blue)"></i>every diagram is interactive &amp; pausable</span>
+    <span class="chip"><i style="background:var(--green)"></i>scroll, or use ← → keys</span>
+  </div>
+</section>
+
+<!-- ════════════ SLIDE 2 · TRANSPORT REFRESHER ════════════ -->
+<section class="slide" id="s1b" data-title="Polling vs SSE vs WS">
+  <p class="kicker">01 / Refresher · the four ways to push</p>
+  <h2>Same goal — get server data to the browser. Very different rhythms.</h2>
+  <p class="lede">Watch each transport's <b>request/update ratio</b> rack up. Short and long polling make the
+  <b>client</b> do the work and pay for empty answers; SSE and WebSocket keep one connection open —
+  but only one of them matches the shape of our problem.</p>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+    <span id="tp-pace"></span>
+    <button class="btn" id="tp-restart">⟲ Restart simulation</button>
+  </div>
+  <div id="tp-lanes"></div>
+  <table class="tport-table">
+    <thead><tr><th></th><th>Short polling</th><th>Long polling</th><th class="hl-col">SSE</th><th>WebSocket</th></tr></thead>
+    <tbody>
+      <tr><td class="rowh">DIRECTION</td><td>client asks, server answers</td><td>client asks, server holds</td><td class="hl-col"><b>server → client only</b></td><td>both directions</td></tr>
+      <tr><td class="rowh">CONNECTION</td><td>new request per check</td><td>new request per message</td><td class="hl-col">one GET, stays open</td><td>one, after Upgrade handshake</td></tr>
+      <tr><td class="rowh">PROTOCOL</td><td>plain HTTP</td><td>plain HTTP</td><td class="hl-col">plain HTTP · text/event-stream</td><td>ws:// framing, ping/pong, heartbeats</td></tr>
+      <tr><td class="rowh">RECONNECT / RESUME</td><td>n/a — stateless</td><td>manual re-request loop</td><td class="hl-col"><b>built in</b> · Last-Event-ID</td><td>you build it yourself</td></tr>
+      <tr><td class="rowh">CLIENT CODE</td><td>fetch + timer + diffing</td><td>fetch loop + state machine</td><td class="hl-col">EventSource ≈ 5 lines</td><td>socket + protocol design</td></tr>
+      <tr><td class="rowh">FIT FOR A READ-ONLY UI</td><td style="color:var(--red)">✗ churn &amp; latency</td><td style="color:var(--amber)">△ works, awkward</td><td class="hl-col" style="color:var(--green)"><b>✓ built for this</b></td><td style="color:var(--amber)">△ power we don't need</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ════════════ SLIDE 3 · WHY SSE FITS ════════════ -->
+<section class="slide" id="s1c" data-title="Why SSE fits us">
+  <p class="kicker">02 / Why SSE wins for this system</p>
+  <h2>Half a protocol is a feature — when you only need half.</h2>
+  <p class="lede">Our UI is a <b>subscriber</b>, not a peer. Every byte it needs flows server → client,
+  and the bytes themselves are already shaped like the thing the UI was going to build anyway: <b>Redux action payloads</b>.</p>
+  <div class="why-cards">
+    <div class="why"><span class="num-badge">1</span><h4>One-way is exactly right</h4>
+      <p>The dashboard never pushes data back on this channel — writes and mutations go through normal REST with verbs, auth and retries. A WebSocket's bidirectionality (and its heartbeats, backpressure and message routing) would be <b>dead weight we have to operate</b>.</p></div>
+    <div class="why"><span class="num-badge">2</span><h4>It's just HTTP</h4>
+      <p>A normal <code>GET</code> with <code>Accept: text/event-stream</code> — so proxies, load balancers, auth headers and cookies all work unmodified. <code>EventSource</code> reconnects automatically and resumes with <code>Last-Event-ID</code>. No upgrade handshake, no framing layer, no ping/pong.</p></div>
+    <div class="why"><span class="num-badge">3</span><h4>The payload IS the action</h4>
+      <p>We don't ship a state snapshot and make the UI figure out what changed — the server <b>already knows</b> what changed. Frames carry <code>{ type, payload }</code> deltas that map 1:1 onto action creators. The client's whole job is <code>JSON.parse → dispatch</code>.</p></div>
+  </div>
+  <div class="transport" style="margin-bottom:12px">
+    <button class="btn primary" id="duo-play">▶ Deliver one update, two ways</button>
+    <span class="stat" id="duo-stat">same update · watch which client finishes first</span>
+  </div>
+  <div class="duo">
+    <div class="duo-panel" id="duo-poll">
+      <header>Polling client · receives a full snapshot</header>
+      <pre class="code" id="duo-poll-code"></pre>
+      <div class="duo-status" id="duo-poll-status">waiting…</div>
+    </div>
+    <div class="duo-panel ssep" id="duo-sse">
+      <header>SSE client · receives the delta</header>
+      <pre class="code" id="duo-sse-code"></pre>
+      <div class="duo-status" id="duo-sse-status">waiting…</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ SLIDE 4 · ARCHITECTURE ════════════ -->
+<section class="slide" id="s2" data-title="Architecture">
+  <p class="kicker">03 / The shape of the system</p>
+  <h2>Everything converges before anything reaches the browser.</h2>
+  <p class="lede">Producers publish to their own topics. The gateway is the <b>only</b> Kafka consumer and the
+  <b>only</b> SSE speaker; Redis sits between them as the system of record. <b>Click any node</b> for its role.</p>
+  <div class="arch-wrap">
+    <div class="arch-stage" id="arch-stage"></div>
+    <aside class="arch-detail" id="arch-detail"></aside>
+  </div>
+  <div class="legend" style="margin-top:14px">
+    <span><i style="background:var(--kafka)"></i>Kafka</span>
+    <span><i style="background:var(--redis)"></i>Redis</span>
+    <span><i style="background:var(--api)"></i>Gateway API</span>
+    <span><i style="background:var(--sse)"></i>SSE</span>
+    <span><i style="background:var(--react)"></i>React/Redux</span>
+  </div>
+</section>
+
+<!-- ════════════ SLIDE 3 · FAN-IN ════════════ -->
+<section class="slide" id="s3" data-title="Fan-in to Redis">
+  <p class="kicker">04 / Many streams, one Redis</p>
+  <h2>Each topic keeps its shape — Redis sees one canonical envelope.</h2>
+  <p class="lede">The consumer normalizes every record into <b>{ type, payload, ts, origin }</b>, writes the
+  per-user keys, and pings a pub/sub channel so the SSE side knows something changed. <b>Fire a topic</b> and watch the write land.</p>
+  <div class="fanin">
+    <div class="lanes" id="lanes"></div>
+    <div class="redis-panel" id="redis-panel">
+      <h4>Redis · single logical DB</h4>
+      <div class="envbox" id="envbox">// canonical envelope appears here
+// { type, payload, ts, origin }</div>
+      <div class="rkey" id="rk-ent"><div class="rk">HGETALL entitlements:u:42</div><div class="rv">pro "false"</div></div>
+      <div class="rkey" id="rk-kv"><div class="rk">GET kv:u:42:theme</div><div class="rv">"default"</div></div>
+      <div class="rkey" id="rk-rows"><div class="rk">LRANGE rows:u:42 -3 -1</div><div class="rv">(empty)</div></div>
+      <div class="rchan" id="rchan">⟡ channel updates:u:42 — idle</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ SLIDE 4 · FILTER GATE ════════════ -->
+<section class="slide" id="s4" data-title="Aggregate & filter">
+  <p class="kicker">05 / Subscribe, aggregate, filter, emit</p>
+  <h2>The same updates. Three subscribers. Three different streams.</h2>
+  <p class="lede">Subscribers declare criteria when they open their SSE connection. The gateway batches pending
+  updates per tick, tests each one against each subscriber's filter, and <b>only writes frames that pass</b>.
+  Edit the criteria, then run the burst.</p>
+  <div class="gate-wrap">
+    <div class="subs" id="subs"></div>
+    <div class="gate-stage">
+      <div class="transport" style="padding:12px 14px 0">
+        <button class="btn primary" id="gate-run">▶ Run burst (6 updates)</button>
+        <button class="btn" id="gate-reset">⟲ Reset</button>
+        <span id="gate-pace"></span>
+        <span class="stat" id="gate-statline">waiting…</span>
+      </div>
+      <div class="gate-canvas" id="gate-canvas"></div>
+    </div>
+    <div class="sse-logs" id="sse-logs"></div>
+  </div>
+</section>
+<!-- ════════════ SLIDE 5 · JOURNEY OF ONE UPDATE ════════════ -->
+<section class="slide" id="s5" data-title="One update, end to end">
+  <p class="kicker">06 / Journey of one update</p>
+  <h2>Follow a single Kafka record all the way to a re-render.</h2>
+  <p class="lede">Ten hops, producer to pixels. <b>Play</b> it through, <b>pause</b> anywhere, or <b>step</b> hop by hop —
+  the inspector shows exactly what the data looks like at the point where the packet is standing.</p>
+  <div class="stepper-wrap" id="stepper-1">
+    <div class="stepper-left">
+      <div class="transport">
+        <button class="btn primary tp-play">▶ Play</button>
+        <button class="btn tp-reset">⟲ Reset</button>
+        <span class="tp-pace"></span>
+        <span class="stat tp-stat">paused · hop 0 / 10</span>
+      </div>
+      <div class="rail"><i class="tp-rail"></i></div>
+      <div class="stages tp-stages"></div>
+      <div class="step-log tp-log"></div>
+      <div class="step-takeaway"><b>The takeaway:</b> filtering doesn't happen in one place — it happens at
+      <b>every hop</b>. Topic choice filters by domain, the single consumer group filters by ownership,
+      the window filters by time, subscriber criteria filter by interest, and <b>useSelector</b> filters by what
+      each component actually displays.</div>
+    </div>
+    <aside class="inspector">
+      <header><b class="tp-insp-title">—</b><span class="tp-insp-tag"></span></header>
+      <div class="body"><pre class="code tp-insp-code">press ▶ Play or Step ⟩</pre></div>
+      <div class="note tp-insp-note"></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ════════════ SLIDE 6 · BATCH / MULTI-UPDATE ════════════ -->
+<section class="slide" id="s6" data-title="Multi-update frames">
+  <p class="kicker">07 / One message, many updates</p>
+  <h2>A Kafka record can carry a batch — and the batch survives the whole trip.</h2>
+  <p class="lede">A single record holds <b>an array of deltas</b>; the aggregation window can merge in updates from
+  other topics too. One SSE frame → many Redux dispatches in the same tick → <b>one consistent UI paint</b>.
+  Same controls — step it and watch the frame contents grow in the inspector.</p>
+  <div class="stepper-wrap" id="stepper-2">
+    <div class="stepper-left">
+      <div class="transport">
+        <button class="btn primary tp-play">▶ Play</button>
+        <button class="btn tp-reset">⟲ Reset</button>
+        <span class="tp-pace"></span>
+        <span class="stat tp-stat">paused · hop 0 / 10</span>
+      </div>
+      <div class="rail"><i class="tp-rail"></i></div>
+      <div class="stages tp-stages"></div>
+      <div class="step-log tp-log"></div>
+      <div class="step-takeaway"><b>The takeaway:</b> batching is preserved end-to-end — one transaction becomes
+      one record, one MULTI, one publish, <b>one SSE frame</b>, one tick of dispatches, one paint. Atomicity is
+      never lost in transit; and per-delta filtering still applies, so a mixed frame can shrink but never tear.</div>
+    </div>
+    <aside class="inspector">
+      <header><b class="tp-insp-title">—</b><span class="tp-insp-tag"></span></header>
+      <div class="body"><pre class="code tp-insp-code">press ▶ Play or Step ⟩</pre></div>
+      <div class="note tp-insp-note"></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ════════════ SLIDE 7 · CLIENT WIRING ════════════ -->
+<section class="slide" id="s7" data-title="Hook → store → selectors">
+  <p class="kicker">08 / The client: hook → store → selectors</p>
+  <h2>One connection in. Selective re-renders out.</h2>
+  <p class="lede">The provider parses each frame, maps deltas to actions, and dispatches. Components
+  <code class="mono" style="font-size:.85em;color:#9fd0ff">useSelector</code> only re-render when <b>their</b> selected value changes;
+  the event bus carries the side-effect subset. Send frames and watch the render meters — code highlights run in sync.</p>
+  <div class="wire-wrap">
+    <div class="code-stack" id="code-stack"></div>
+    <div class="mockui" id="mockui-7" style="position:relative"></div>
+  </div>
+</section>
+
+<!-- ════════════ SLIDE 8 · END TO END LIVE ════════════ -->
+<section class="slide" id="s8" data-title="End to end, live">
+  <p class="kicker">09 / End to end, live</p>
+  <h2>The whole machine, running.</h2>
+  <p class="lede">Random updates are produced into Kafka topics, travel the full path — normalize → Redis → aggregate →
+  filter → SSE → hook → dispatch — and land in the UI on the right. This is the talk's closer: leave it running.</p>
+  <div class="e2e-wrap">
+    <div class="e2e-left">
+      <div class="transport">
+        <button class="btn primary" id="e2e-play">⏸ Pause</button>
+        <button class="btn" id="e2e-reset">⟲ Reset</button>
+        <span id="e2e-pace"></span>
+        <span class="stat" id="e2e-statline">streaming…</span>
+      </div>
+      <div class="e2e-track" id="e2e-track"></div>
+      <div class="e2e-stats">
+        <div class="e2e-stat"><div class="v" id="st-in">0</div><div class="l">updates in</div></div>
+        <div class="e2e-stat"><div class="v" id="st-frames">0</div><div class="l">SSE frames out</div></div>
+        <div class="e2e-stat"><div class="v" id="st-drops">0</div><div class="l">filtered out</div></div>
+        <div class="e2e-stat"><div class="v" id="st-dispatch">0</div><div class="l">dispatches</div></div>
+        <div class="e2e-stat"><div class="v sig" id="st-render">0</div><div class="l">re-renders</div></div>
+      </div>
+      <div class="devlog" id="e2e-log" style="max-height:190px"></div>
+    </div>
+    <div class="mockui" id="mockui-8" style="position:relative"></div>
+  </div>
+</section>
+
+<!-- ════════════ SLIDE 9 · COMPANION DEMO ════════════ -->
+<section class="slide" id="s9" data-title="Live companion demo">
+  <p class="kicker">10 / Your turn: the live demo</p>
+  <h2>Same architecture, running in a real React app.</h2>
+  <p class="demo-note"><span class="chip"><i></i>sse-redux-demo.html</span>
+  Keep that file in the same folder as this deck. It loads React from a CDN, so the one machine that shows it needs internet once; the simulated stream itself is fully local.</p>
+  <div class="demo-frame"><iframe src="sse-redux-demo.html" title="SSE → Redux demo"></iframe></div>
+</section>
+
+<!-- ════════════ SLIDE 10 · RECAP ════════════ -->
+<section class="slide" id="s10" data-title="Recap">
+  <p class="kicker">11 / Recap</p>
+  <h2>Six things to remember when you build this.</h2>
+  <div class="recap" style="margin-top:22px">
+    <div class="take"><span class="num-badge">1</span><div><h4>One canonical envelope</h4>
+      <p>Every topic normalizes to <code>{ type, payload, ts, origin }</code>. Downstream code never cares which topic an update came from — that's what makes N→1 fan-in cheap.</p></div></div>
+    <div class="take"><span class="num-badge">2</span><div><h4>Redis is the rendezvous</h4>
+      <p>Kafka consumers write; SSE workers read. One Redis DB decouples ingest rate from fan-out rate and gives late joiners current state, not just the live tail.</p></div></div>
+    <div class="take"><span class="num-badge">3</span><div><h4>Filter on the server, not the client</h4>
+      <p>Subscriber criteria live in the gateway. A phone on 4G never pays the bandwidth for updates it would have thrown away anyway.</p></div></div>
+    <div class="take"><span class="num-badge">4</span><div><h4>Array frames = atomic batches</h4>
+      <p>A multi-delta Kafka record becomes <b>one</b> SSE frame. All its dispatches land in the same tick, so the UI never paints a half-applied batch.</p></div></div>
+    <div class="take"><span class="num-badge">5</span><div><h4>Two lanes on the client</h4>
+      <p><code>dispatch</code> feeds the store (state); the event bus feeds side effects (toasts, flashes). State subscribers and event listeners evolve independently.</p></div></div>
+    <div class="take"><span class="num-badge">6</span><div><h4>useSelector is the last filter</h4>
+      <p>Even after the server's filter, components re-render only when <b>their selected slice</b> changes. Filtering happens at every layer — bandwidth, frames, dispatches, renders.</p></div></div>
+  </div>
+  <p class="lede" style="margin-top:auto;padding-top:30px">Questions? — and the whole deck runs offline, so feel free to poke at it during Q&amp;A.</p>
+</section>
+</div><!-- /deck -->
+<script>
+"use strict";
+/* ═══════════════ CORE UTILITIES ═══════════════ */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const REDUCED=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const easeOut=p=>1-Math.pow(1-p,3);
+function center(el){const r=el.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};}
+function flyEl(el,from,to,dur,arc=0){return new Promise(res=>{const t0=performance.now();
+  (function step(now){const p=Math.min(1,(now-t0)/dur),e=easeOut(p);
+    el.style.left=(from.x+(to.x-from.x)*e)+"px";
+    el.style.top=(from.y+(to.y-from.y)*e-Math.sin(e*Math.PI)*arc)+"px";
+    if(p<1)requestAnimationFrame(step);else res();})(t0);});}
+
+/* deck navigation */
+const deck=$("#deck"),slides=$$(".slide"),dotsNav=$("#dots");
+slides.forEach((s,i)=>{const a=document.createElement("a");a.href="#";
+  a.innerHTML='<span>'+String(i+1).padStart(2,"0")+" · "+esc(s.dataset.title)+"</span>";
+  a.addEventListener("click",e=>{e.preventDefault();go(i);});dotsNav.appendChild(a);});
+let cur=0;
+function go(i){cur=clamp(i,0,slides.length-1);slides[cur].scrollIntoView({behavior:REDUCED?"auto":"smooth"});}
+const visIO=new IntersectionObserver(es=>{es.forEach(en=>{en.target._vis=en.intersectionRatio>.25;
+  if(en.intersectionRatio>.55){cur=slides.indexOf(en.target);
+    $$("#dots a").forEach((a,i)=>a.classList.toggle("on",i===cur));
+    $("#counter").textContent=String(cur+1).padStart(2,"0")+" / "+String(slides.length).padStart(2,"0");}});},
+  {root:deck,threshold:[.25,.55]});
+slides.forEach(s=>visIO.observe(s));
+deck.addEventListener("scroll",()=>{const p=deck.scrollTop/(deck.scrollHeight-deck.clientHeight);
+  $("#progress").style.width=(p*100).toFixed(2)+"%";},{passive:true});
+addEventListener("keydown",e=>{
+  if(e.target.matches("input,select,textarea"))return;
+  if(["ArrowDown","ArrowRight","PageDown"," "].includes(e.key)){e.preventDefault();go(cur+1);}
+  else if(["ArrowUp","ArrowLeft","PageUp"].includes(e.key)){e.preventDefault();go(cur-1);}
+  else if(e.key==="Home")go(0);else if(e.key==="End")go(slides.length-1);
+  else if(e.key==="p"||e.key==="P"){const p=pausables.get(slides[cur]);if(p)p.toggle();}
+  else if(e.key==="f"||e.key==="F"){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();}});
+
+/* master animation clock: one rAF, per-slide loops gated by visibility */
+const loops=[],pausables=new Map();
+function addLoop(slide,fn){loops.push({slide,fn});}
+function registerPausable(slide,api){pausables.set(slide,{...api,toggle(){api.setPaused(!api.getPaused());}});}
+(function master(){let last=performance.now();
+  (function fr(now){const dt=Math.min(60,now-last);last=now;
+    for(const l of loops)if(l.slide._vis&&!document.hidden){try{l.fn(dt);}catch(err){console.error(err);}}
+    requestAnimationFrame(fr);})(last);})();
+
+/* pace control: speed slider (10–100%, never faster) + click-to-step mode */
+function makePace(host,{onSpeed,onStepMode,onStep}={}){
+  host.classList.add("pace");
+  host.innerHTML=
+   '<span class="pace-lbl">SPEED</span>'+
+   '<span class="pace-sliderwrap"><input type="range" min="10" max="100" step="5" value="100" aria-label="animation speed">'+
+   '<span class="pace-ticks"><i>10%</i><i>50%</i><i>100%</i></span></span>'+
+   '<span class="pace-val">100%</span>'+
+   '<button class="btn pace-mode" title="Pause auto-play and advance one step per click">⏯ click-to-step</button>'+
+   '<button class="btn pace-step" disabled>Step ⟩</button>';
+  const range=$("input",host),val=$(".pace-val",host),modeBtn=$(".pace-mode",host),stepBtn=$(".pace-step",host);
+  let stepMode=false;
+  range.addEventListener("input",()=>{const p=+range.value;val.textContent=p+"%";
+    range.style.setProperty("--fill",(((p-10)/90)*100)+"%");onSpeed&&onSpeed(p/100);});
+  modeBtn.addEventListener("click",()=>{stepMode=!stepMode;
+    modeBtn.classList.toggle("on",stepMode);
+    modeBtn.textContent=stepMode?"⏯ stepping":"⏯ click-to-step";
+    stepBtn.disabled=!stepMode;
+    onStepMode&&onStepMode(stepMode);});
+  stepBtn.addEventListener("click",()=>onStep&&onStep());
+  return{isStep:()=>stepMode,exitStep(){if(stepMode)modeBtn.click();}};}
+
+/* ═══════════════ MINI REDUX + MOCK UI FACTORY (slides 7 & 8) ═══════════════ */
+function createStore(reducer,initial){let s=initial;const subs=new Set();
+  return{getState:()=>s,subscribe(f){subs.add(f);return()=>subs.delete(f);},
+    dispatch(a){s=reducer(s,a);subs.forEach(f=>f());return a;}};}
+function miniReducer(state,action){switch(action.type){
+  case"entitlements/updated":return{...state,entitlements:{...state.entitlements,...action.payload}};
+  case"kv/updated":return{...state,kv:{...state.kv,...action.payload}};
+  case"table/rowsAppended":return{...state,table:{rows:[...state.table.rows,...action.payload]}};
+  default:return state;}}
+const HANDLERS={entitlement:p=>({type:"entitlements/updated",payload:p}),
+  kv:p=>({type:"kv/updated",payload:p}),rows:p=>({type:"table/rowsAppended",payload:p})};
+const actionsFor=deltas=>deltas.map(d=>HANDLERS[d.type]&&HANDLERS[d.type](d.payload)).filter(Boolean);
+
+let rowSeq=100;
+const NAMES=["Acme","Globex","Initech","Umbrella","Hooli","Stark","Wayne","Wonka","Cyberdyne","Tyrell","Soylent","Aperture","Vandelay","Pied Piper"];
+const rand=a=>a[Math.floor(Math.random()*a.length)];
+const makeRows=n=>Array.from({length:n},()=>({id:++rowSeq,name:rand(NAMES)}));
+const FRAMES={
+  grant:()=>({type:"entitlement",payload:{pro:true,seats:5}}),
+  revoke:()=>({type:"entitlement",payload:{pro:false}}),
+  seats:()=>({type:"entitlement",payload:{seats:3+Math.floor(Math.random()*10)}}),
+  theme:()=>({type:"kv",payload:{theme:rand(["dark","light","solarized","contrast"])}}),
+  smallRows:()=>({type:"rows",payload:makeRows(1+Math.floor(Math.random()*2))}),
+  bigBatch:()=>({type:"rows",payload:makeRows(10+Math.floor(Math.random()*5))}),
+  combo:()=>[{type:"entitlement",payload:{pro:true}},{type:"rows",payload:makeRows(2)}]};
+const fmtTime=()=>{const d=new Date();return d.toLocaleTimeString([],{hour12:false})+"."+String(d.getMilliseconds()).padStart(3,"0");};
+
+function mountMockUI(root,opts={}){
+  root.innerHTML=
+   '<header><span class="num-badge">▣</span><span class="url">app.internal/dashboard · new EventSource("/stream?subscriber=u:42")</span></header>'+
+   '<div class="body">'+
+   (opts.controls?'<div class="mock-controls">'+
+     '<button class="btn" data-f="grant">Grant Pro</button><button class="btn" data-f="revoke">Revoke Pro</button>'+
+     '<button class="btn" data-f="seats">Change seats</button><button class="btn" data-f="theme">Change theme</button>'+
+     '<button class="btn" data-f="smallRows">Add row</button><button class="btn" data-f="bigBatch">Add 10+ rows</button>'+
+     '<button class="btn" data-f="combo">Combo frame</button></div>':"")+
+   '<div class="mrow">'+
+     '<div class="mcard" data-c="pro"><span class="meter">rendered ×0</span><h6>ProBadge — entitlements.pro</h6><span class="mbadge off">FREE</span></div>'+
+     '<div class="mcard" data-c="seats"><span class="meter">rendered ×0</span><h6>SeatCounter — entitlements.seats</h6><div class="big">—</div></div>'+
+     '<div class="mcard" data-c="theme"><span class="meter">rendered ×0</span><h6>ThemeIndicator — kv.theme</h6><div class="big">default</div></div>'+
+   '</div>'+
+   '<div class="mtable"><span class="meter">rendered ×0</span><h6 style="margin:0 0 6px;font:9px var(--mono);letter-spacing:.1em;color:var(--faint);text-transform:uppercase">DataTable — table.rows (<span class="rc">0</span>)</h6>'+
+     '<table><thead><tr><th>ID</th><th>NAME</th></tr></thead><tbody><tr><td colspan="2" style="color:var(--faint)">no rows yet</td></tr></tbody></table></div>'+
+   (opts.log?'<div class="devlog"></div>':"")+
+   '</div><div class="mtoasts"></div>';
+  const store=createStore(miniReducer,{entitlements:{pro:false,seats:null},kv:{theme:"default"},table:{rows:[]}});
+  const bus=new Map();
+  const emit=(t,p)=>{(bus.get(t)||[]).forEach(f=>{try{f(p);}catch(e){console.error(e);}});};
+  const on=(t,f)=>{if(!bus.has(t))bus.set(t,[]);bus.get(t).push(f);};
+  const counts={renders:0,dispatches:0,frames:0};
+  const logEl=$(".devlog",root);
+  function log(html,cls){if(!logEl)return;const d=document.createElement("div");d.className="dl "+(cls||"");
+    d.innerHTML='<span class="ts">'+fmtTime()+"</span>"+html;logEl.prepend(d);
+    while(logEl.children.length>30)logEl.lastChild.remove();}
+  /* selective subscription: re-render only when selected value changes */
+  function connect(selector,render,cardSel){
+    const card=$(cardSel,root),meter=$(".meter",card);let cur=selector(store.getState()),n=0;
+    function paint(first){n++;counts.renders++;meter.textContent="rendered ×"+n;
+      render(cur);
+      if(!first){card.classList.add("rendered");setTimeout(()=>card.classList.remove("rendered"),480);}}
+    paint(true);
+    store.subscribe(()=>{const n=selector(store.getState());
+      if(JSON.stringify(n)!==JSON.stringify(cur)){cur=n;paint(false);}});}
+  connect(s=>s.entitlements.pro,v=>{$(".mbadge",root).className="mbadge"+(v?"":" off");$(".mbadge",root).textContent=v?"PRO":"FREE";},'[data-c="pro"]');
+  connect(s=>s.entitlements.seats,v=>{$('[data-c="seats"] .big',root).textContent=v??"—";},'[data-c="seats"]');
+  connect(s=>s.kv.theme,v=>{$('[data-c="theme"] .big',root).textContent=v;},'[data-c="theme"]');
+  const flashIds=new Set();
+  connect(s=>s.table.rows,rows=>{$(".rc",root).textContent=rows.length;
+    const tb=$(".mtable tbody",root);const shown=rows.slice(-8).reverse();
+    tb.innerHTML=shown.length?shown.map(r=>'<tr class="'+(flashIds.has(r.id)?"flash":"")+'"><td>'+r.id+"</td><td>"+esc(r.name)+"</td></tr>").join("")
+      :'<tr><td colspan="2" style="color:var(--faint)">no rows yet</td></tr>';},".mtable");
+  /* toasts: the side-effect SUBSET, driven by the bus not the store */
+  function toast(msg,tone){const t=document.createElement("div");t.className="mtoast "+tone;t.textContent=msg;
+    $(".mtoasts",root).appendChild(t);setTimeout(()=>t.remove(),3400);}
+  on("entitlement",e=>{if(e.pro===false)toast("Your Pro access was revoked","warn");
+    else if(e.pro===true)toast("Pro features unlocked","success");});
+  on("rows",rows=>{rows.forEach(r=>flashIds.add(r.id));setTimeout(()=>flashIds.clear(),1100);
+    if(rows.length>=10)toast(rows.length+" new records loaded","info");});
+  /* the "SSE hook": one frame in → log, parse, dispatch, emit */
+  function frame(dataString){
+    counts.frames++;
+    log('<b>SSE frame</b> '+esc(dataString),"frame");
+    let msg;try{msg=JSON.parse(dataString);}catch{return;}
+    const deltas=Array.isArray(msg)?msg:[msg];
+    actionsFor(deltas).forEach(a=>{counts.dispatches++;
+      log("dispatch <b>"+esc(a.type)+"</b> "+esc(JSON.stringify(a.payload)),
+        a.type.startsWith("entitlements")?"ent":a.type.startsWith("kv")?"kv":"tab");
+      store.dispatch(a);});
+    deltas.forEach(d=>emit(d.type,d.payload));}
+  if(opts.controls)$$(".mock-controls .btn",root).forEach(b=>
+    b.addEventListener("click",()=>frame(JSON.stringify(FRAMES[b.dataset.f]()))));
+  return{store,frame,counts,toast,log};}
+</script>
+<script>
+"use strict";
+/* ═══════════════ SLIDE 2 — INTERACTIVE ARCHITECTURE ═══════════════ */
+(function(){
+  const slide=$("#s2"),stage=$("#arch-stage"),detail=$("#arch-detail");
+  const NS="http://www.w3.org/2000/svg";
+  const NODES=[
+    {id:"svcA",x:24,y:60,w:150,h:62,c:"var(--kafka)",title:"Service A",sub:"profile / billing",tag:"PRODUCER",
+     role:"Kafka producer",body:"Publishes entitlement changes (plan grants, revokes, seat counts) to its own topic. Knows nothing about Redis, SSE, or the UI.",
+     why:["<b>Decoupled:</b> no direct DB writes to Redis — Kafka is the only contract","One topic per domain keeps schemas evolvable"]},
+    {id:"svcB",x:24,y:216,w:150,h:62,c:"var(--kafka)",title:"Service B",sub:"prefs service",tag:"PRODUCER",
+     role:"Kafka producer",body:"Emits key/value preference changes — theme, locale, feature flags — as small records.",
+     why:["KV updates are low-volume but high fan-out: every open tab wants them"]},
+    {id:"svcC",x:24,y:372,w:150,h:62,c:"var(--kafka)",title:"Service C",sub:"orders service",tag:"PRODUCER",
+     role:"Kafka producer",body:"Emits row/record updates — and can pack <b>several deltas into one record</b> when a transaction touches many entities.",
+     why:["Batching in the record preserves transactional atomicity all the way to the UI"]},
+    {id:"kafka",x:238,y:170,w:170,h:200,c:"var(--kafka)",title:"Kafka cluster",sub:"topics: entitlements · prefs · rows",tag:"×N TOPICS",
+     role:"Durable log",body:"N topics, independent schemas and rates. The gateway's consumer group is the <b>only</b> consumer in this design — no per-subscriber Kafka connections.",
+     why:["Replay &amp; durability for free","Producers and consumers scale independently","Consumer group gives us offset management and failover"]},
+    {id:"redis",x:486,y:52,w:190,h:96,c:"var(--redis)",title:"Redis — single DB",sub:"hashes + strings + lists + pub/sub",tag:"SYSTEM OF RECORD",
+     role:"Rendezvous store",body:"One logical DB holds current per-user state (<code>HSET entitlements:u:42</code>, <code>SET kv:…</code>, <code>RPUSH rows:…</code>) plus a pub/sub channel that nudges SSE workers.",
+     why:["Ingest rate and fan-out rate are decoupled","Late joiners read current state, not just the live tail","Pub/sub means SSE workers don't poll"]},
+    {id:"api",x:486,y:212,w:190,h:120,c:"var(--api)",title:"Stream Gateway API",sub:"consumer → normalize → aggregate → filter → SSE",tag:"STATELESS · SCALES OUT",
+     role:"The brain of the system",body:"Consumes every topic, normalizes to the canonical envelope, writes Redis, then per subscriber: aggregates pending updates into frames and applies that subscriber's filter criteria before writing a single byte.",
+     why:["Server-side filtering saves client bandwidth and battery","Stateless workers — any instance can serve any subscriber (Redis is shared)","One SSE connection per client, not per topic"]},
+    {id:"ui",x:742,y:212,w:160,h:120,c:"var(--react)",title:"Browser client",sub:"EventSource → SSEProvider → store → useSelector",tag:"REACT / REDUX",
+     role:"Subscriber",body:"Opens one <code>EventSource</code>. The provider hook parses each frame, dispatches one Redux action per delta, and emits on an event bus for side effects. Components re-render selectively via <code>useSelector</code>.",
+     why:["SSE = plain HTTP: proxies, auth headers and auto-reconnect for free","Redux gives the UI a single, inspectable state of record"]}];
+  const EDGES=[["svcA","kafka"],["svcB","kafka"],["svcC","kafka"],["kafka","api"],["api","redis"],["redis","api"],["api","ui"]];
+  const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox","0 0 920 470");
+  const gE=document.createElementNS(NS,"g"),gN=document.createElementNS(NS,"g"),gP=document.createElementNS(NS,"g");
+  svg.append(gE,gN,gP);stage.appendChild(svg);
+  const nodeById={};let selected=null;
+  function edgePath(a,b,i){const ax=a.x+a.w,ay=a.y+a.h/2,bx=b.x,by=b.y+b.h/2;
+    if(a.id==="api"&&b.id==="redis")return`M ${a.x+a.w/2-40} ${a.y} C ${a.x+a.w/2-40} ${a.y-50}, ${b.x+b.w/2-40} ${b.y+b.h+50}, ${b.x+b.w/2-40} ${b.y+b.h}`;
+    if(a.id==="redis"&&b.id==="api")return`M ${a.x+a.w/2+40} ${a.y+a.h} C ${a.x+a.w/2+40} ${a.y+a.h+50}, ${b.x+b.w/2+40} ${b.y-50}, ${b.x+b.w/2+40} ${b.y}`;
+    const mx=(ax+bx)/2;return`M ${ax} ${ay} C ${mx} ${ay}, ${mx} ${by}, ${bx} ${by}`;}
+  const edgeEls=[];
+  EDGES.forEach(([ia,ib],i)=>{const p=document.createElementNS(NS,"path");
+    p.setAttribute("d",edgePath(nodeById0(ia),nodeById0(ib),i));p.setAttribute("class","aedge");
+    p.dataset.a=ia;p.dataset.b=ib;gE.appendChild(p);edgeEls.push(p);});
+  function nodeById0(id){return NODES.find(n=>n.id===id);}
+  NODES.forEach(n=>{
+    const g=document.createElementNS(NS,"g");g.setAttribute("class","anode");g.dataset.id=n.id;
+    const r=document.createElementNS(NS,"rect");
+    r.setAttribute("x",n.x);r.setAttribute("y",n.y);r.setAttribute("width",n.w);r.setAttribute("height",n.h);
+    r.setAttribute("rx",10);r.style.stroke=n.c;g.appendChild(r);
+    const t1=document.createElementNS(NS,"text");t1.setAttribute("x",n.x+14);t1.setAttribute("y",n.y+26);t1.textContent=n.title;
+    const t2=document.createElementNS(NS,"text");t2.setAttribute("x",n.x+14);t2.setAttribute("y",n.y+44);t2.setAttribute("class","sub");t2.textContent=n.sub.length>30?n.sub.slice(0,29)+"…":n.sub;
+    const t3=document.createElementNS(NS,"text");t3.setAttribute("x",n.x+14);t3.setAttribute("y",n.y+n.h-10);t3.setAttribute("class","tag");t3.textContent=n.tag;t3.style.fill=n.c;
+    g.append(t1,t2,t3);
+    g.addEventListener("click",()=>select(n.id));
+    g.addEventListener("mouseenter",()=>hot(n.id,true));
+    g.addEventListener("mouseleave",()=>hot(selected?selected.id:null,false));
+    gN.appendChild(g);nodeById[n.id]=g;});
+  function hot(id){edgeEls.forEach(e=>e.classList.toggle("hot",id&&(e.dataset.a===id||e.dataset.b===id)));}
+  function select(id){selected=NODES.find(n=>n.id===id);
+    Object.values(nodeById).forEach(g=>g.classList.toggle("sel",g.dataset.id===id));hot(id);
+    detail.innerHTML='<div class="role" style="color:'+selected.c+'">'+selected.role+"</div>"+
+      "<h3>"+selected.title+"</h3><p>"+selected.body+"</p>"+
+      '<div class="arch-why"><div class="role" style="color:var(--faint);margin-bottom:6px">Why it\'s built this way</div><ul>'+
+      selected.why.map(w=>"<li>"+w+"</li>").join("")+"</ul></div>";}
+  select("api");
+  /* ambient packets along edges */
+  const flows=[["svcA","kafka",.9],["svcB","kafka",.6],["svcC","kafka",.7],["kafka","api",1],["api","redis",.8],["redis","api",.8],["api","ui",1.1]];
+  const pkts=flows.map(([a,b,sp],i)=>{const c=document.createElementNS(NS,"circle");
+    c.setAttribute("r",4);c.setAttribute("class","apkt");
+    c.setAttribute("fill",getComputedStyle(document.documentElement).getPropertyValue("--signal").trim()||"#FF9E40");
+    c.style.filter="drop-shadow(0 0 5px rgba(255,158,64,.8))";
+    gP.appendChild(c);
+    return{path:edgeEls[EDGES.findIndex(e=>e[0]===a&&e[1]===b)],t:i/flows.length,sp:sp*.09,el:c,len:0};});
+  pkts.forEach(p=>p.len=p.path.getTotalLength());
+  let paused=REDUCED;
+  addLoop(slide,dt=>{if(paused)return;
+    pkts.forEach(p=>{p.t=(p.t+dt*p.sp/1000)%1;const pt=p.path.getPointAtLength(p.t*p.len);
+      p.el.setAttribute("cx",pt.x);p.el.setAttribute("cy",pt.y);});});
+  registerPausable(slide,{setPaused(v){paused=v;slide.classList.toggle("paused",v);},getPaused:()=>paused});
+})();
+
+/* ═══════════════ SLIDE 3 — FAN-IN TO REDIS ═══════════════ */
+(function(){
+  const slide=$("#s3"),lanes=$("#lanes"),envbox=$("#envbox"),chan=$("#rchan");
+  const THEMES=["dark","light","solarized","contrast"];let themeIx=0,rowId=127;
+  const TOPICS=[
+    {key:"ent",topic:"entitlements",svc:"svc-a · profile-billing",mk:()=>({rec:{user:"u:42",pro:true,seats:3+Math.floor(Math.random()*8)},
+      env:r=>({type:"entitlement",payload:{pro:r.pro,seats:r.seats}}),
+      write:r=>["HSET entitlements:u:42 pro "+r.pro+" seats "+r.seats],cell:"rk-ent",rv:r=>'pro "'+r.pro+'"\nseats "'+r.seats+'"'})},
+    {key:"kv",topic:"prefs",svc:"svc-b · prefs",mk:()=>({rec:{user:"u:42",key:"theme",value:THEMES[themeIx=(themeIx+1)%THEMES.length]},
+      env:r=>({type:"kv",payload:{theme:r.value}}),
+      write:r=>['SET kv:u:42:theme "'+r.value+'"'],cell:"rk-kv",rv:r=>'"'+r.value+'"'})},
+    {key:"rows",topic:"rows",svc:"svc-c · orders",mk:()=>({rec:{user:"u:42",rows:[{id:++rowId,name:rand(NAMES)},{id:++rowId,name:rand(NAMES)}]},
+      env:r=>({type:"rows",payload:r.rows}),
+      write:r=>["RPUSH rows:u:42 '"+JSON.stringify(r.rows[0])+"' '"+JSON.stringify(r.rows[1])+"'"],cell:"rk-rows",rv:r=>r.rows.map(x=>JSON.stringify(x)).join("\n")})}];
+  TOPICS.forEach(t=>{
+    const lane=document.createElement("div");lane.className="lane";lane.id="lane-"+t.key;
+    lane.innerHTML='<div class="lane-head"><span class="topic">topic: '+t.topic+'</span><span class="svc">'+t.svc+'</span>'+
+      '<button class="btn">▶ produce</button></div><pre class="code"></pre>';
+    lanes.appendChild(lane);
+    const render=()=>{t.cur=t.mk();$(".code",lane).textContent="// record value\n"+JSON.stringify(t.cur.rec,null,1);};
+    render();
+    $("button",lane).addEventListener("click",async()=>{
+      render();lane.classList.add("active");
+      const chip=document.createElement("div");chip.className="fly";chip.textContent="kafka rec · "+t.topic;
+      document.body.appendChild(chip);const from=center($(".code",lane));
+      chip.style.left=from.x+"px";chip.style.top=from.y+"px";
+      await flyEl(chip,from,center(envbox),550,60);
+      chip.classList.add("signal");
+      const env=t.env(t.cur.rec);env.ts=Date.now();env.origin="kafka:"+t.topic;
+      envbox.textContent="// canonical envelope\n"+JSON.stringify(env,null,1);
+      await flyEl(chip,center(envbox),center(chan),500,40);chip.remove();
+      t.cur.rec&&writeRedis(t,env);lane.classList.remove("active");});});
+  function writeRedis(t,env){
+    const cell=$("#"+t.cell);$(".rv",cell).textContent=t.rv(t.cur.rec);
+    cell.classList.add("hit");setTimeout(()=>cell.classList.remove("hit"),900);
+    chan.textContent="⟡ channel updates:u:42 — PUBLISH { type:\""+env.type+'" } → SSE workers wake';
+    chan.classList.add("hit");setTimeout(()=>chan.classList.remove("hit"),900);}
+})();
+</script>
+<script>
+"use strict";
+/* ═══════════════ SLIDE 4 — AGGREGATE → FILTER → EMIT ═══════════════ */
+(function(){
+  const slide=$("#s4"),subsEl=$("#subs"),canvas=$("#gate-canvas"),logsEl=$("#sse-logs");
+  const SUBS=[
+    {id:"A",name:"Mobile app",crit:{entitlement:true,kv:false,rows:false},min:1},
+    {id:"B",name:"Web dashboard",crit:{entitlement:false,kv:false,rows:true},min:10},
+    {id:"C",name:"Admin console",crit:{entitlement:true,kv:true,rows:true},min:1}];
+  const BURST=[
+    {type:"entitlement",payload:{pro:true,seats:5}},
+    {type:"kv",payload:{theme:"dark"}},
+    {type:"rows",payload:[{id:131,name:"Acme"},{id:132,name:"Hooli"}]},
+    {type:"rows",payload:Array.from({length:12},(_,i)=>({id:140+i,name:NAMES[i%NAMES.length]}))},
+    {type:"entitlement",payload:{pro:false}},
+    {type:"kv",payload:{theme:"light"}}];
+  const TCOLOR={entitlement:"var(--amber)",kv:"var(--violet)",rows:"var(--green)"};
+  SUBS.forEach(s=>{
+    const d=document.createElement("div");d.className="sub";d.dataset.id=s.id;
+    d.innerHTML="<h4>Subscriber "+s.id+" · "+s.name+'</h4><div class="sid">GET /stream?subscriber='+s.id.toLowerCase()+'</div>'+
+      '<div style="font:9.5px var(--mono);color:var(--faint);letter-spacing:.14em;margin:4px 0 2px">ACCEPTED TYPES</div>'+
+      ["entitlement","kv","rows"].map(t=>'<label><input type="checkbox" data-t="'+t+'"'+(s.crit[t]?" checked":"")+'>'+t+"</label>").join("")+
+      '<label style="margin-top:4px">rows batch ≥<select>'+[1,3,10].map(n=>"<option"+(n===s.min?" selected":"")+">"+n+"</option>").join("")+"</select></label>";
+    subsEl.appendChild(d);
+    $$("input[type=checkbox]",d).forEach(cb=>cb.addEventListener("change",()=>{s.crit[cb.dataset.t]=cb.checked;}));
+    $("select",d).addEventListener("change",e=>{s.min=+e.target.value;});
+    const log=document.createElement("div");log.className="sse-log";log.id="log-"+s.id;
+    log.innerHTML="<h5>SSE → subscriber "+s.id+" · "+s.name+'</h5><div class="body"><div class="dl" style="color:var(--faint)">// frames that pass the filter appear here</div></div>';
+    logsEl.appendChild(log);});
+  /* canvas nodes: source + 3 gates + 3 sinks */
+  const ys=[20,50,80];
+  canvas.innerHTML="";
+  const src=document.createElement("div");src.className="gate-node";src.style.left="13%";src.style.top="50%";
+  src.innerHTML='<div class="gn-box"><b>aggregation tick</b>6 envelopes ready</div>';canvas.appendChild(src);
+  SUBS.forEach((s,i)=>{
+    const g=document.createElement("div");g.className="gate-node";g.id="gate-"+s.id;g.style.left="50%";g.style.top=ys[i]+"%";
+    g.innerHTML='<div class="gn-box"><b>filter · sub '+s.id+"</b>criteria check</div>";canvas.appendChild(g);
+    const k=document.createElement("div");k.className="gate-node";k.id="sink-"+s.id;k.style.left="85%";k.style.top=ys[i]+"%";
+    k.innerHTML='<div class="gn-box" style="border-color:rgba(95,168,199,.5)"><b>EventSource '+s.id+"</b>text/event-stream</div>";canvas.appendChild(k);});
+  let running=false,runTok=0,gpct=1,gstepMode=false,stepIx=0,sent=0,out=0,drops=0;
+  function pass(s,u){if(!s.crit[u.type])return false;
+    if(u.type==="rows"&&u.payload.length<s.min)return false;return true;}
+  function statline(){$("#gate-statline").textContent=sent?sent+" updates in → "+out+" frames out · "+drops+" dropped":"waiting…";}
+  async function deliverOne(u){
+    sent++;
+    const label=u.type+(u.type==="rows"?" ×"+u.payload.length:"");
+    await Promise.all(SUBS.map(async s=>{
+      const ok=pass(s,u);
+      const chip=document.createElement("div");chip.className="gpkt";chip.style.borderColor=TCOLOR[u.type];
+      chip.textContent=label;canvas.appendChild(chip);
+      const cr=canvas.getBoundingClientRect();
+      const from=pct(13,50,cr),gateP=pct(50,ys[SUBS.indexOf(s)],cr),sinkP=pct(85,ys[SUBS.indexOf(s)],cr);
+      chip.style.left=from.x+"px";chip.style.top=from.y+"px";
+      await flyEl(chip,from,gateP,420/gpct,0);
+      chip.classList.add(ok?"pass":"drop");
+      $("#gate-"+s.id+" .gn-box").style.borderColor=ok?"var(--green)":"#3a3f48";
+      setTimeout(()=>{$("#gate-"+s.id+" .gn-box").style.borderColor="";},600);
+      if(ok){out++;await flyEl(chip,gateP,sinkP,380/gpct,0);
+        const f=document.createElement("div");f.className="frame";
+        f.textContent="event: patch\ndata: "+JSON.stringify(u);
+        $("#log-"+s.id+" .body").prepend(f);chip.remove();}
+      else{drops++;setTimeout(()=>chip.remove(),420);}
+    }));
+    statline();}
+  $("#gate-run").addEventListener("click",async()=>{
+    if(running||gstepMode)return;running=true;const my=++runTok;
+    for(const u of BURST){if(runTok!==my)break;
+      await deliverOne(u);
+      await new Promise(r=>setTimeout(r,180/gpct));}
+    running=false;});
+  makePace($("#gate-pace"),{
+    onSpeed:v=>{gpct=v;},
+    onStepMode:on=>{gstepMode=on;runTok++;
+      $("#gate-run").disabled=on;$("#gate-run").style.opacity=on?".45":"";},
+    onStep:async()=>{if(running)return;running=true;
+      await deliverOne(BURST[stepIx]);stepIx=(stepIx+1)%BURST.length;running=false;}});
+  function pct(x,y,cr){return{x:cr.width*x/100,y:cr.height*y/100};}
+  $("#gate-reset").addEventListener("click",()=>{
+    runTok++;sent=out=drops=stepIx=0;
+    $$(".frame",logsEl).forEach(f=>f.remove());$$(".gpkt",canvas).forEach(c=>c.remove());
+    statline();});
+})();
+</script>
+<script>
+"use strict";
+/* ═══════════════ STEPPER ENGINE (slides 5 & 6) ═══════════════ */
+function mountStepper(rootSel,slide,stages,opts={}){
+  const root=$(rootSel);
+  const DWELL=opts.dwell||1500,TRAVEL=opts.travel||750;
+  const N=stages.length,T=N*DWELL+(N-1)*TRAVEL;
+  const stagesEl=$(".tp-stages",root),logEl=$(".tp-log",root);
+  stages.forEach((st,i)=>{
+    const d=document.createElement("div");d.className="stage";d.style.setProperty("--sc",st.color);
+    d.innerHTML='<span class="st-num">HOP '+String(i+1).padStart(2,"0")+"</span><h5>"+st.title+"</h5><p>"+st.sub+"</p>";
+    stagesEl.appendChild(d);
+    const chip=document.createElement("span");chip.textContent=String(i+1).padStart(2,"0")+" "+st.title;logEl.appendChild(chip);});
+  const dot=document.createElement("div");dot.className="stage-dot";dot.style.opacity="0";
+  dot.innerHTML='<span class="lbl">'+esc(opts.packetLabel||"the update")+"</span>";
+  stagesEl.appendChild(dot);
+  const ui={play:$(".tp-play",root),reset:$(".tp-reset",root),
+    stat:$(".tp-stat",root),rail:$(".tp-rail",root),inspT:$(".tp-insp-title",root),
+    inspTag:$(".tp-insp-tag",root),inspCode:$(".tp-insp-code",root),inspNote:$(".tp-insp-note",root)};
+  let t=0,playing=false,speed=1,stepMode=false,stageIx=-1,anchors=[];
+  function measure(){anchors=$$(".stage",stagesEl).map(el=>{
+    const r=el.getBoundingClientRect(),pr=stagesEl.getBoundingClientRect();
+    return{x:r.left-pr.left+r.width/2,y:r.top-pr.top+18};});}
+  addEventListener("resize",measure);
+  function posAt(time){
+    if(time<=0)return anchors[0];
+    let acc=0;
+    for(let i=0;i<N;i++){
+      if(time<acc+DWELL)return anchors[i];
+      acc+=DWELL;
+      if(i<N-1){if(time<acc+TRAVEL){const p=easeOut((time-acc)/TRAVEL);
+        return{x:anchors[i].x+(anchors[i+1].x-anchors[i].x)*p,y:anchors[i].y+(anchors[i+1].y-anchors[i].y)*p};}
+        acc+=TRAVEL;}}
+    return anchors[N-1];}
+  function stageAt(time){let acc=0;
+    for(let i=0;i<N;i++){if(time<acc+DWELL)return i;acc+=DWELL;if(i<N-1){if(time<acc+TRAVEL)return i;acc+=TRAVEL;}}
+    return N-1;}
+  const dwellStart=i=>i*(DWELL+TRAVEL);
+  function render(){
+    if(!anchors.length)measure();
+    const p=posAt(t);dot.style.left=p.x+"px";dot.style.top=p.y+"px";dot.style.opacity=t>0?"1":"0";
+    ui.rail.style.transform="scaleX("+(t/T)+")";
+    const ix=stageAt(t);
+    if(ix!==stageIx){stageIx=ix;
+      $$(".stage",stagesEl).forEach((el,i)=>{el.classList.toggle("active",i===ix&&t>0);el.classList.toggle("done",i<ix);});
+      $$("span",logEl).forEach((el,i)=>el.classList.toggle("hit",i<=ix&&t>0));
+      const st=stages[ix];
+      ui.inspT.textContent=st.title;ui.inspTag.textContent=st.tag;ui.inspTag.style.color=st.color;
+      ui.inspCode.innerHTML=st.code;ui.inspNote.innerHTML=st.note||"";}
+    ui.stat.textContent=(stepMode?"step mode — click Step ⟩":playing?"playing":t>=T?"done — ⟲ to replay":"paused")+" · hop "+(t>0?ix+1:0)+" / "+N;}
+  ui.play.addEventListener("click",()=>{if(t>=T)t=0;playing=!playing;ui.play.textContent=playing?"⏸ Pause":"▶ Play";render();});
+  function doStep(){playing=false;ui.play.textContent="▶ Play";
+    if(t===0)t=1;else t=Math.min(T,dwellStart(stageAt(t)+1));render();}
+  ui.reset.addEventListener("click",()=>{t=0;playing=false;stageIx=-1;ui.play.textContent="▶ Play";
+    $$(".stage",stagesEl).forEach(el=>el.classList.remove("active","done"));
+    $$("span",logEl).forEach(el=>el.classList.remove("hit"));render();});
+  makePace($(".tp-pace",root),{
+    onSpeed:v=>{speed=v;},
+    onStepMode:on=>{stepMode=on;if(on){playing=false;ui.play.textContent="▶ Play";}render();},
+    onStep:doStep});
+  addLoop(slide,dt=>{if(!playing)return;t+=dt*speed;if(t>=T){t=T;playing=false;ui.play.textContent="▶ Play";}render();});
+  registerPausable(slide,{setPaused(v){if(v||stepMode){playing=false;}else if(t<T){playing=true;}
+    ui.play.textContent=playing?"⏸ Pause":"▶ Play";render();},getPaused:()=>!playing&&!stepMode});
+  measure();render();}
+
+/* stage color shorthand */
+const C={kafka:"var(--kafka)",redis:"var(--redis)",api:"var(--api)",sse:"var(--sse)",react:"var(--react)"};
+const KC=(cls,txt)=>'<span class="'+cls+'">'+esc(txt)+"</span>";
+</script>
+<script>
+"use strict";
+/* ═══════════════ SLIDE 5 — JOURNEY OF ONE UPDATE ═══════════════ */
+mountStepper("#stepper-1",$("#s5"),[
+ {title:"Produce",sub:"svc-a publishes",color:C.kafka,tag:"kafka producer",
+  code:`<span class="c">// svc-a · profile-billing</span>
+producer.<span class="f">send</span>({
+  topic: <span class="s">"entitlements"</span>,
+  messages: [{ key: <span class="s">"u:42"</span>,
+    value: <span class="s">'{"pro":true,"seats":5}'</span> }]
+})`,
+  note:`Fire-and-forget. The producer has no idea Redis, SSE, or React exist — the Kafka topic is the <b>entire contract</b>.`},
+ {title:"Kafka topic",sub:"append to the log",color:C.kafka,tag:"durable log",
+  code:`topic:     <span class="t">entitlements</span> · partition 0
+offset:    <span class="n">1042</span>
+key:       <span class="s">"u:42"</span>
+value:     <span class="s">{"pro":true,"seats":5}</span>`,
+  note:`Durable and replayable. Any consumer group can re-read this record later — that's our audit trail and our recovery story.`},
+ {title:"Consume",sub:"gateway poll()",color:C.kafka,tag:"consumer group · gw",
+  code:`<span class="c">// stream-gateway · the ONLY consumer group</span>
+records = <span class="k">await</span> consumer.<span class="f">poll</span>()
+<span class="c">// → 1 record from entitlements @ offset 1042</span>`,
+  note:`Browsers never touch Kafka. One consumer group reads <b>all</b> the topics we've mapped, no matter how many clients are connected.`},
+ {title:"Normalize",sub:"canonical envelope",color:C.api,tag:"gateway",
+  code:`{
+  <span class="k">"type"</span>: <span class="s">"entitlement"</span>,
+  <span class="k">"payload"</span>: { <span class="k">"pro"</span>: <span class="n">true</span>, <span class="k">"seats"</span>: <span class="n">5</span> },
+  <span class="k">"ts"</span>: <span class="n">1721203200417</span>,
+  <span class="k">"origin"</span>: <span class="s">"kafka:entitlements#1042"</span>
+}`,
+  note:`The canonical envelope. From here on, nothing downstream cares which topic this came from — <b>{ type, payload, ts, origin }</b> is the whole vocabulary.`},
+ {title:"Redis write",sub:"state + signal",color:C.redis,tag:"single DB",
+  code:`<span class="f">HSET</span> entitlements:u:42 pro <span class="n">true</span> seats <span class="n">5</span>
+<span class="f">PUBLISH</span> updates:u:42 <span class="s">'{"type":"entitlement"}'</span>`,
+  note:`Two things in one DB: <b>current state</b> (the hash) so late joiners catch up, and a <b>signal</b> (pub/sub) so SSE workers wake instantly instead of polling.`},
+ {title:"Aggregate",sub:"drain the tick",color:C.api,tag:"gateway · SSE worker",
+  code:`<span class="c">// worker for subscriber u:42, woken by PUBLISH</span>
+pending = <span class="f">drain</span>(<span class="s">updates:u:42</span>)  <span class="c">// this tick</span>
+batch   = [ entitlementΔ ]`,
+  note:`Everything arriving inside the same window travels together. A batch of one today — but this is exactly where multi-delta frames come from (<b>next slide</b>).`},
+ {title:"Filter",sub:"criteria check",color:C.api,tag:"per subscriber",
+  code:`subscriber u:42 criteria:
+  types:    [<span class="s">entitlement</span>, <span class="s">kv</span>, <span class="s">rows</span>]
+  minBatch: <span class="n">1</span>
+
+<span class="f">test</span>(entitlementΔ) → <span class="n">PASS</span>`,
+  note:`A subscriber whose filter excludes <b>entitlement</b> gets nothing — zero bytes on the wire. Filtering here saves bandwidth, battery, and client-side work.`},
+ {title:"SSE frame",sub:"write to stream",color:C.sse,tag:"text/event-stream",
+  code:`<span class="k">event:</span> patch
+<span class="k">data:</span> <span class="s">{"type":"entitlement","payload":{"pro":true,"seats":5},"ts":1721203200417}</span>
+<span class="c">// ← blank line terminates the frame</span>`,
+  note:`One SSE connection per client — not per topic. Plain HTTP, so auth headers, proxies, and auto-reconnect (Last-Event-ID) come free.`},
+ {title:"Hook · onmessage",sub:"EventSource fires",color:C.react,tag:"SSEProvider",
+  code:`connection.<span class="f">onmessage</span> = (e) => {
+  <span class="k">const</span> msg = JSON.<span class="f">parse</span>(e.data)
+  <span class="k">const</span> deltas = Array.<span class="f">isArray</span>(msg) ? msg : [msg]
+  <span class="f">actionsFor</span>(deltas).<span class="f">forEach</span>(store.dispatch)
+  deltas.<span class="f">forEach</span>(d => bus.<span class="f">emit</span>(d.type, d.payload))
+}`,
+  note:`The SSEProvider hook — the <b>single door</b> through which every server push enters the app. Frames and bare objects both handled: arrays are unwrapped.`},
+ {title:"Dispatch + render",sub:"store → selectors",color:C.react,tag:"redux",
+  code:`<span class="f">dispatch</span> <span class="t">entitlements/updated</span> {pro:<span class="n">true</span>, seats:<span class="n">5</span>}
+reducer → new state <span class="c">(immutable update)</span>
+
+<span class="f">useSelector</span>(s => s.entitlements.pro)   → ProBadge      <span class="n">re-renders</span>
+<span class="f">useSelector</span>(s => s.entitlements.seats) → SeatCounter   <span class="n">re-renders</span>
+<span class="f">useSelector</span>(s => s.kv.theme)           → ThemeIndicator <span class="c">SKIPPED</span>
+bus.<span class="f">emit</span>(<span class="s">"entitlement"</span>) → toast: <span class="s">"Pro features unlocked"</span>`,
+  note:`Equality on the <b>selected slice</b> means ThemeIndicator and DataTable never re-render for this update — the last filter in the chain. The bus carries the side effect.`}],
+ {packetLabel:'{"pro":true,"seats":5}'});
+
+/* ═══════════════ SLIDE 6 — MULTI-UPDATE FRAMES ═══════════════ */
+mountStepper("#stepper-2",$("#s6"),[
+ {title:"Produce (batch)",sub:"1 txn → 3 deltas",color:C.kafka,tag:"kafka producer",
+  code:`<span class="c">// svc-c · orders — one transaction, three changes</span>
+producer.<span class="f">send</span>({ topic: <span class="s">"rows"</span>, messages: [{
+  key: <span class="s">"u:42"</span>,
+  value: JSON.<span class="f">stringify</span>([
+    {kind:<span class="s">"rows"</span>,   rows:[{id:<span class="n">133</span>…},{id:<span class="n">134</span>…}]},
+    {kind:<span class="s">"entitlement"</span>, pro:<span class="n">true</span>},
+    {kind:<span class="s">"kv"</span>,     theme:<span class="s">"dark"</span>}
+  ]) }]})`,
+  note:`<b>One Kafka record, three deltas.</b> Batching at the source preserves transactional atomicity — these three changes happened together, so they should arrive together.`},
+ {title:"Kafka topic",sub:"still one record",color:C.kafka,tag:"durable log",
+  code:`topic:     <span class="t">rows</span> · partition 0
+offset:    <span class="n">2051</span>
+value:     <span class="s">[ Δ rows ×2, Δ entitlement, Δ kv ]</span>
+<span class="c">// a single log entry carrying three updates</span>`,
+  note:`To Kafka it's just one record — ordering guaranteed. The array inside is opaque to the broker; only our envelope gives it meaning.`},
+ {title:"Consume + unpack",sub:"1 record → 3 deltas",color:C.kafka,tag:"consumer group · gw",
+  code:`records = <span class="k">await</span> consumer.<span class="f">poll</span>()
+<span class="c">// rows @ 2051 → unpack array:</span>
+deltas = [ rowsΔ, entitlementΔ, kvΔ ]  <span class="c">// ×3 from one record</span>`,
+  note:`The consumer unpacks the array. From here, each delta is treated individually — <b>except</b> they keep their shared origin so aggregation can re-batch them.`},
+ {title:"Normalize",sub:"array envelope",color:C.api,tag:"gateway",
+  code:`[
+  {<span class="k">"type"</span>:<span class="s">"rows"</span>, <span class="k">"payload"</span>:[{id:<span class="n">133</span>…},{id:<span class="n">134</span>…}], <span class="k">"origin"</span>:<span class="s">"rows#2051"</span>},
+  {<span class="k">"type"</span>:<span class="s">"entitlement"</span>, <span class="k">"payload"</span>:{<span class="k">"pro"</span>:<span class="n">true</span>}, <span class="k">"origin"</span>:<span class="s">"rows#2051"</span>},
+  {<span class="k">"type"</span>:<span class="s">"kv"</span>, <span class="k">"payload"</span>:{<span class="k">"theme"</span>:<span class="s">"dark"</span>}, <span class="k">"origin"</span>:<span class="s">"rows#2051"</span>}
+]`,
+  note:`Three canonical envelopes, one shared origin. Same vocabulary as the single-update path — no special cases downstream.`},
+ {title:"Redis write",sub:"MULTI transaction",color:C.redis,tag:"single DB",
+  code:`<span class="f">MULTI</span>
+  <span class="f">RPUSH</span> rows:u:42 <span class="s">'{"id":133…}' '{"id":134…}'</span>
+  <span class="f">HSET</span> entitlements:u:42 pro <span class="n">true</span>
+  <span class="f">SET</span> kv:u:42:theme <span class="s">"dark"</span>
+  <span class="f">PUBLISH</span> updates:u:42 <span class="s">'{"count":3}'</span>
+<span class="f">EXEC</span>`,
+  note:`One MULTI/EXEC: all three writes land atomically, and a <b>single</b> PUBLISH wakes the SSE workers once — not three times.`},
+ {title:"Aggregate",sub:"merge the window",color:C.api,tag:"gateway · SSE worker",
+  code:`tick window (<span class="n">250</span> ms):
+  from rows#2051   → rowsΔ, entitlementΔ, kvΔ(theme)
+  from prefs#311   → kvΔ(locale:<span class="s">"en-GB"</span>)  <span class="c">// unrelated topic!</span>
+
+frame queue = <span class="n">4</span> deltas`,
+  note:`The window doesn't just preserve source batches — it <b>merges across topics</b>. A prefs update that happened to land in the same 250 ms rides along. Four deltas, one frame.`},
+ {title:"Filter",sub:"each delta tested",color:C.api,tag:"per subscriber",
+  code:`subscriber u:42 criteria: types [entitlement, kv, rows]
+
+<span class="f">test</span>(rowsΔ)        → <span class="n">PASS</span>
+<span class="f">test</span>(entitlementΔ)  → <span class="n">PASS</span>
+<span class="f">test</span>(kvΔ · theme)   → <span class="n">PASS</span>
+<span class="f">test</span>(kvΔ · locale)  → <span class="n">PASS</span>`,
+  note:`Filtering is <b>per delta</b>, not per frame: if the subscriber excluded kv, the two kv deltas would be dropped and the frame would ship with just two.`},
+ {title:"SSE frame",sub:"array on the wire",color:C.sse,tag:"text/event-stream",
+  code:`<span class="k">event:</span> patch
+<span class="k">data:</span> <span class="s">[{"type":"rows",…},{"type":"entitlement",…},</span>
+<span class="s">       {"type":"kv",…},{"type":"kv",…}]</span>
+<span class="c">// ONE frame, FOUR deltas</span>`,
+  note:`The array survives the whole trip. One frame = one network flush = one atomic unit of work for the client.`},
+ {title:"Hook · onmessage",sub:"fan-out 1→4",color:C.react,tag:"SSEProvider",
+  code:`<span class="k">const</span> msg = JSON.<span class="f">parse</span>(e.data)        <span class="c">// Array(4)</span>
+<span class="k">const</span> deltas = Array.<span class="f">isArray</span>(msg) ? msg : [msg]
+<span class="f">actionsFor</span>(deltas)   <span class="c">// → 4 actions, mapped 1:1 by type</span>
+  .<span class="f">forEach</span>(store.dispatch)
+deltas.<span class="f">forEach</span>(d => bus.<span class="f">emit</span>(d.type, d.payload))`,
+  note:`Same hook code as the single-update path — <code>Array.isArray</code> is the only branch. Four deltas in, four dispatches out, in order.`},
+ {title:"Dispatch ×4",sub:"one tick, one paint",color:C.react,tag:"redux",
+  code:`<span class="f">dispatch</span> <span class="t">table/rowsAppended</span>   [{id:<span class="n">133</span>…},{id:<span class="n">134</span>…}]
+<span class="f">dispatch</span> <span class="t">entitlements/updated</span> {pro:<span class="n">true</span>}
+<span class="f">dispatch</span> <span class="t">kv/updated</span>           {theme:<span class="s">"dark"</span>}
+<span class="f">dispatch</span> <span class="t">kv/updated</span>           {locale:<span class="s">"en-GB"</span>}
+<span class="c">── all four land in the SAME tick ──</span>
+→ DataTable flashes rows 133,134 · ProBadge → PRO · ThemeIndicator → dark
+→ bus: rows(<span class="n">2</span>) &lt; <span class="n">10</span> silent · entitlement pro → toast`,
+  note:`Array frames are <b>atomic batches</b>: the UI never paints a half-applied transaction. And the toast subset rules still hold — a 2-row batch stays quiet.`}],
+ {packetLabel:"[ Δ, Δ, Δ ]"});
+</script>
+<script>
+"use strict";
+/* ═══════════════ SLIDE 7 — CLIENT WIRING ═══════════════ */
+(function(){
+  const slide=$("#s7"),stack=$("#code-stack");
+  const CARDS=[
+   {lc:"var(--react)",title:"SSEProvider · the single door",lines:[
+    {t:"function SSEProvider({ connection, children }) {"},
+    {t:"  const store = useContext(StoreContext)"},
+    {t:"  const bus = useMemo(() => createEventBus(), [])"},
+    {t:"  useEffect(() => {"},
+    {t:"    connection.onmessage = (e) => {",ph:"recv"},
+    {t:"      store.logStream(e.data)                       // devtools",ph:"recv"},
+    {t:"      const msg = JSON.parse(e.data)",ph:"parse"},
+    {t:"      const deltas = Array.isArray(msg) ? msg : [msg]",ph:"parse"},
+    {t:"      actionsFor(deltas).forEach(store.dispatch)    // STATE",ph:"dispatch"},
+    {t:"      deltas.forEach(d => bus.emit(d.type, d.payload)) // EVENTS",ph:"bus"},
+    {t:"    }"},
+    {t:"    return () => connection.close()"},
+    {t:"  }, [connection, store, bus])"},
+    {t:"}"}]},
+   {lc:"var(--violet)",title:"actionsFor · deltas → actions",lines:[
+    {t:"const HANDLERS = {"},
+    {t:"  entitlement: entitlementsUpdated,   // {type:'entitlements/updated'}"},
+    {t:"  kv: kvUpdated,                      // {type:'kv/updated'}"},
+    {t:"  rows: rowsAppended,                 // {type:'table/rowsAppended'}"},
+    {t:"}"},
+    {t:"function actionsFor(deltas) {",ph:"map"},
+    {t:"  return deltas",ph:"map"},
+    {t:"    .map(d => HANDLERS[d.type]?.(d.payload))   // unknown types ignored",ph:"map"},
+    {t:"    .filter(Boolean)",ph:"map"},
+    {t:"}"}]},
+   {lc:"var(--green)",title:"ProBadge · the last filter",lines:[
+    {t:"function ProBadge() {"},
+    {t:"  const pro = useSelector(s => s.entitlements.pro)",ph:"selector"},
+    {t:"  // re-renders ONLY when the selected value changes",ph:"selector"},
+    {t:"  // a kv or rows frame never touches this component",ph:"selector"},
+    {t:"  return pro ? <PRO-badge/> : <FREE-badge/>"},
+    {t:"}"},
+    {t:""},
+    {t:"// side effects ride the bus instead:",ph:"bus"},
+    {t:"useSSEEvent('entitlement', e => {",ph:"bus"},
+    {t:"  if (e.pro === true) toast('Pro features unlocked')",ph:"bus"},
+    {t:"})"}]}];
+  const cardEls=CARDS.map(c=>{
+    const d=document.createElement("div");d.className="code-card";
+    d.innerHTML='<header><i style="--lc:'+c.lc+'"></i>'+c.title+'</header><pre class="code"></pre>';
+    stack.appendChild(d);return{card:c,pre:$("pre",d)};});
+  function renderCode(active){
+    cardEls.forEach(({card,pre})=>{
+      pre.innerHTML=card.lines.map(l=>
+        l.ph&&active.includes(l.ph)?'<span class="hl">'+esc(l.t)+"</span>":esc(l.t)).join("\n");});}
+  renderCode([]);
+  const ui7=mountMockUI($("#mockui-7"),{controls:false,log:true});
+  const ctrl=document.createElement("div");ctrl.className="mock-controls";
+  const PHASES=[["recv"],["parse"],["map"],["dispatch"],["selector","bus"]];
+  let seqToken=0;
+  [["grant","Grant Pro"],["revoke","Revoke Pro"],["seats","Change seats"],["theme","Change theme"],
+   ["smallRows","Add row"],["bigBatch","Add 10+ rows"],["combo","Combo frame"]].forEach(([k,label])=>{
+    const b=document.createElement("button");b.className="btn";b.textContent=label;
+    b.addEventListener("click",()=>sendFrame(k));ctrl.appendChild(b);});
+  $("#mockui-7 .body").prepend(ctrl);
+  function sendFrame(k){
+    const json=JSON.stringify(FRAMES[k]());const tok=++seqToken;let i=0;
+    (function next(){if(tok!==seqToken)return;
+      if(i<PHASES.length){renderCode(PHASES[i]);
+        if(PHASES[i][0]==="dispatch")ui7.frame(json);
+        i++;setTimeout(next,380);}
+      else setTimeout(()=>{if(tok===seqToken)renderCode([]);},1100);})();}
+})();
+
+/* ═══════════════ SLIDE 8 — END TO END, LIVE ═══════════════ */
+(function(){
+  const slide=$("#s8"),track=$("#e2e-track"),logEl=$("#e2e-log");
+  const NODES=[
+    {id:"prod",x:6.5,label:"producers",sub:"svc a · b · c",c:"var(--kafka)"},
+    {id:"kafka",x:19,label:"Kafka",sub:"×N topics",c:"var(--kafka)"},
+    {id:"norm",x:31.5,label:"normalize",sub:"envelope",c:"var(--api)"},
+    {id:"redis",x:44,label:"Redis",sub:"write + publish",c:"var(--redis)"},
+    {id:"agg",x:56.5,label:"aggregate",sub:"per tick",c:"var(--api)"},
+    {id:"filt",x:69,label:"filter",sub:"types ✓ · rows ≥ 3",c:"var(--api)"},
+    {id:"sse",x:81.5,label:"SSE",sub:"1 frame",c:"var(--sse)"},
+    {id:"hook",x:94,label:"hook → store",sub:"dispatch",c:"var(--react)"}];
+  NODES.forEach(n=>{const d=document.createElement("div");d.className="e2e-node";d.id="e2e-"+n.id;
+    d.style.left=n.x+"%";d.style.top="50%";d.style.setProperty("--nc",n.c);
+    d.innerHTML='<div class="en-box"><b>'+n.label+"</b>"+n.sub+"</div>";track.appendChild(d);});
+  let ui8=mountMockUI($("#mockui-8"),{controls:false,log:false});
+  const stats={in:0,frames:0,drops:0};
+  function drawStats(){$("#st-in").textContent=stats.in;$("#st-frames").textContent=stats.frames;
+    $("#st-drops").textContent=stats.drops;$("#st-dispatch").textContent=ui8.counts.dispatches;
+    $("#st-render").textContent=ui8.counts.renders;}
+  function log(html,cls){const d=document.createElement("div");d.className="dl "+(cls||"");
+    d.innerHTML='<span class="ts">'+fmtTime()+"</span>"+html;logEl.prepend(d);
+    while(logEl.children.length>40)logEl.lastChild.remove();}
+  let centers=[],edges=[];
+  function layout(){const tr=track.getBoundingClientRect();
+    centers=NODES.map(n=>{const r=$("#e2e-"+n.id).getBoundingClientRect();
+      return{x:r.left-tr.left+r.width/2,y:r.top-tr.top+r.height/2};});
+    edges.forEach(e=>e.remove());edges=[];
+    for(let i=0;i<centers.length-1;i++){const a=centers[i],b=centers[i+1];
+      const e=document.createElement("div");e.className="e2e-edge";
+      const len=Math.hypot(b.x-a.x,b.y-a.y),ang=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;
+      e.style.cssText="left:"+a.x+"px;top:"+a.y+"px;width:"+len+"px;transform:rotate("+ang+"deg)";
+      track.insertBefore(e,track.firstChild);edges.push(e);}}
+  addEventListener("resize",layout);layout();
+  const POOL=["smallRows","smallRows","seats","theme","smallRows","revoke","grant","bigBatch","combo","theme","seats"];
+  const FILTER=u=>u.type==="rows"&&u.payload.length<3?"rows batch "+u.payload.length+" < 3 — dropped":null;
+  let playing=!REDUCED,speed=1,estepMode=false,spawnAcc=0,packets=[];
+  function pulse(id){const n=$("#e2e-"+id);n.classList.add("pulse");setTimeout(()=>n.classList.remove("pulse"),420);}
+  function spawn(){
+    const raw=FRAMES[rand(POOL)]();
+    const deltas=Array.isArray(raw)?raw:[raw];
+    stats.in+=deltas.length;
+    log("produced <b>"+deltas.map(d=>d.type).join(" + ")+"</b> → kafka","frame");
+    pulse("prod");pulse("kafka");
+    const el=document.createElement("div");el.className="e2e-pkt";track.appendChild(el);
+    packets.push({el,deltas,seg:0,p:0});}
+  const SEGMS=340; // ms per hop at 1×
+  function advance(dt){
+    spawnAcc+=dt;
+    if(spawnAcc>1150){spawnAcc=0;spawn();}
+    packets=packets.filter(pk=>{
+      pk.p+=dt/SEGMS;
+      while(pk.p>=1&&pk.seg<centers.length-1){pk.p-=1;pk.seg++;arrive(pk);}
+      if(pk.dead){pk.el.remove();return false;}
+      const a=centers[pk.seg],b=centers[Math.min(pk.seg+1,centers.length-1)];
+      pk.el.style.left=(a.x+(b.x-a.x)*pk.p)+"px";pk.el.style.top=(a.y+(b.y-a.y)*pk.p)+"px";
+      return true;});
+    drawStats();}
+  makePace($("#e2e-pace"),{
+    onSpeed:v=>{speed=v;},
+    onStepMode:on=>{estepMode=on;setStat();},
+    onStep:()=>advance(400)});
+  addLoop(slide,dt=>{if(!playing||estepMode)return;advance(dt*speed);});
+  function arrive(pk){
+    const node=NODES[pk.seg];if(!node)return;pulse(node.id);
+    if(node.id==="norm")log("normalize → <b>{type, payload, ts, origin}</b>");
+    if(node.id==="redis")log("<b>HSET/RPUSH</b> + PUBLISH updates:u:42","");
+    if(node.id==="filt"){
+      const kept=pk.deltas.filter(d=>!FILTER(d));
+      pk.deltas.filter(FILTER).forEach(d=>{stats.drops++;log("filtered out: <b>"+esc(FILTER(d))+"</b>","");});
+      if(!kept.length){pk.dead=true;pk.el.style.opacity=".25";return;}
+      pk.deltas=kept;}
+    if(node.id==="hook"){
+      const frame=pk.deltas.length===1?pk.deltas[0]:pk.deltas;
+      stats.frames++;ui8.frame(JSON.stringify(frame));pk.dead=true;}}
+  function setStat(){$("#e2e-statline").textContent=estepMode?"step mode — click Step ⟩":playing?"streaming…":"paused";}
+  function setPlaying(v){playing=v;$("#e2e-play").textContent=v?"⏸ Pause":"▶ Play";setStat();
+    slide.classList.toggle("paused",!v);}
+  $("#e2e-play").addEventListener("click",()=>setPlaying(!playing));
+  $("#e2e-reset").addEventListener("click",()=>{
+    packets.forEach(p=>p.el.remove());packets=[];stats.in=stats.frames=stats.drops=0;logEl.innerHTML="";
+    ui8=mountMockUI($("#mockui-8"),{controls:false,log:false});drawStats();});
+  registerPausable(slide,{setPaused:setPlaying,getPaused:()=>!playing});
+  if(REDUCED)setPlaying(false);
+})();
+
+/* ═══════════════ SLIDE 2 — TRANSPORT LANE SIMULATION ═══════════════ */
+(function(){
+  const slide=$("#s1b"),wrap=$("#tp-lanes");
+  const LANES=[
+    {kind:"short",name:"Short polling",tag:"client asks · on a timer",color:"var(--red)"},
+    {kind:"long", name:"Long polling", tag:"client asks · server holds",color:"var(--amber)"},
+    {kind:"sse",  name:"SSE",          tag:"server pushes · one-way",  color:"var(--sse)"},
+    {kind:"ws",   name:"WebSocket",    tag:"both directions · frames", color:"var(--violet)"}];
+  const sims=LANES.map(cfg=>{
+    const lane=document.createElement("div");lane.className="tp-lane";
+    lane.innerHTML='<div class="tl-head"><b style="color:'+cfg.color+'">'+cfg.name+'</b><span>'+cfg.tag+'</span></div>'+
+      '<div class="tl-track"><div class="tl-line"></div><div class="tl-hold"></div>'+
+      '<div class="tl-end c">UI</div><div class="tl-end s">SVR</div><div class="tl-note"></div></div>'+
+      '<div class="tl-stats">requests <b class="rq">0</b> &nbsp;·&nbsp; updates <b class="up">0</b></div>';
+    wrap.appendChild(lane);
+    return{cfg,track:$(".tl-track",lane),hold:$(".tl-hold",lane),note:$(".tl-note",lane),
+      rq:$(".rq",lane),up:$(".up",lane),reqs:0,ups:0,t:0,phase:0,next:400,respondAt:0,cycle:0,packets:[]};});
+  function pkt(sim,dir,label,cls,onArrive){
+    const W=sim.track.clientWidth;
+    const el=document.createElement("div");el.className="tl-pkt "+cls;
+    el.innerHTML="<i></i><span>"+label+"</span>";
+    sim.track.appendChild(el);
+    sim.packets.push({el,x:dir>0?34:W-34,dir,speed:W*2.4,onArrive});}
+  const STEPS={
+    short(sim){
+      if(sim.t>=sim.next){
+        pkt(sim,1,"GET","req",()=>{
+          sim.reqs++;sim.rq.textContent=sim.reqs;sim.cycle++;
+          const data=sim.cycle%4===0;
+          pkt(sim,-1,data?"200 Δ":"200 ∅",data?"res-data":"res-empty",()=>{
+            if(data){sim.ups++;sim.up.textContent=sim.ups;}});});
+        sim.next=sim.t+1800;}},
+    long(sim){
+      if(sim.phase===0&&sim.t>=sim.next){sim.phase=1;
+        pkt(sim,1,"GET","req",()=>{
+          sim.reqs++;sim.rq.textContent=sim.reqs;
+          sim.note.textContent="held open…";sim.hold.className="tl-hold on";
+          sim.respondAt=sim.t+1400+Math.random()*1300;});}
+      else if(sim.phase===1&&sim.t>=sim.respondAt){sim.phase=0;
+        sim.note.textContent="";sim.hold.className="tl-hold";
+        pkt(sim,-1,"200 Δ","res-data",()=>{sim.ups++;sim.up.textContent=sim.ups;});
+        sim.next=sim.t+2400;}},
+    sse(sim){
+      if(sim.phase===0){sim.phase=1;
+        pkt(sim,1,"GET /stream","req",()=>{
+          sim.reqs++;sim.rq.textContent=sim.reqs;
+          sim.note.textContent="open · text/event-stream";sim.hold.className="tl-hold on sse";
+          sim.next=sim.t+900;});}
+      else if(sim.t>=sim.next){
+        pkt(sim,-1,"event","evt",()=>{sim.ups++;sim.up.textContent=sim.ups;});
+        sim.next=sim.t+1500+Math.random()*700;}},
+    ws(sim){
+      if(sim.phase===0){sim.phase=1;
+        pkt(sim,1,"Upgrade","req",()=>{
+          sim.reqs++;sim.rq.textContent=sim.reqs;
+          sim.note.textContent="101 · upgraded";sim.hold.className="tl-hold on ws";
+          sim.next=sim.t+800;});}
+      else if(sim.t>=sim.next){
+        if(Math.random()<0.55)pkt(sim,-1,"frame Δ","evt",()=>{sim.ups++;sim.up.textContent=sim.ups;});
+        else pkt(sim,1,"frame","frame-up",null);   // client→server traffic we never asked for
+        sim.next=sim.t+1100+Math.random()*600;}}};
+  function movePackets(sim,dt){
+    const W=sim.track.clientWidth;
+    sim.packets=sim.packets.filter(p=>{
+      p.x+=p.dir*p.speed*dt/1000;
+      const done=(p.dir>0&&p.x>=W-30)||(p.dir<0&&p.x<=30);
+      if(done){p.el.remove();p.onArrive&&p.onArrive();return false;}
+      p.el.style.left=p.x+"px";return true;});}
+  let paused=REDUCED,lpct=1,lstepMode=false;
+  function advance(dt){sims.forEach(s=>{s.t+=dt;STEPS[s.cfg.kind](s);movePackets(s,dt);});}
+  makePace($("#tp-pace"),{onSpeed:v=>{lpct=v;},
+    onStepMode:on=>{lstepMode=on;},onStep:()=>advance(500)});
+  if(REDUCED){ // static summary instead of motion
+    const STATIC={short:[12,3],long:[5,3],sse:[1,3],ws:[1,3]};
+    sims.forEach(s=>{const[a,b]=STATIC[s.cfg.kind];s.rq.textContent=a;s.up.textContent=b;
+      s.note.textContent="typical ratio (motion off)";});
+    $("#tp-restart").style.display="none";$("#tp-pace").style.display="none";}
+  addLoop(slide,dt=>{if(paused||lstepMode)return;advance(dt*lpct);});
+  $("#tp-restart").addEventListener("click",()=>{
+    sims.forEach(s=>{s.packets.forEach(p=>p.el.remove());Object.assign(s,
+      {reqs:0,ups:0,t:0,phase:0,next:400,cycle:0,packets:[]});
+      s.rq.textContent="0";s.up.textContent="0";s.note.textContent="";s.hold.className="tl-hold";});});
+  registerPausable(slide,{setPaused(v){paused=v;},getPaused:()=>paused});
+})();
+
+/* ═══════════════ SLIDE 3 — SNAPSHOT VS DELTA DUO ═══════════════ */
+(function(){
+  const POLL_LINES=[
+    '{',
+    '  "user": "u:42",',
+    '  "entitlements": { "pro": true, "seats": 5 },',
+    '  "kv": { "theme": "dark", "locale": "en-GB" },',
+    '  "table": { "rows": [ /* … 128 rows … */ ] },',
+    '  "session": { "csrf": "9f2…", "flags": {…} },',
+    '  "meta": { "rev": 9912, "ts": 1721203200417 }',
+    '}'];
+  const SSE_LINES=[
+    'event: patch',
+    'data: {"type":"entitlement","payload":{"seats":5}}'];
+  const pollCode=$("#duo-poll-code"),sseCode=$("#duo-sse-code");
+  function paint(pre,lines){pre.innerHTML=lines.map(l=>'<span class="ln">'+esc(l)+"</span>").join("");}
+  paint(pollCode,POLL_LINES);paint(sseCode,SSE_LINES);
+  const pStat=$("#duo-poll-status"),sStat=$("#duo-sse-status");
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  let tok=0;
+  $("#duo-play").addEventListener("click",()=>{
+    const my=++tok;paint(pollCode,POLL_LINES);paint(sseCode,SSE_LINES);
+    const pollLns=$$(".ln",pollCode),sseLns=$$(".ln",sseCode);
+    $("#duo-stat").textContent="running…";
+    (async()=>{ // SSE side — done almost immediately
+      await sleep(400);if(tok!==my)return;
+      sseLns.forEach(l=>l.classList.add("found"));
+      sStat.innerHTML="← frame arrives on the open connection";
+      await sleep(650);if(tok!==my)return;
+      sStat.innerHTML="JSON.parse → HANDLERS[<span style='color:#9fd0ff'>\"entitlement\"</span>] matched";
+      await sleep(650);if(tok!==my)return;
+      sStat.innerHTML="<b>dispatch(entitlements/updated) — done.</b>";})();
+    (async()=>{ // polling side — the long way around
+      await sleep(400);if(tok!==my)return;
+      pStat.innerHTML="← fetch() → 200 OK · full snapshot, again";
+      pollLns.forEach(l=>l.classList.add("scan"));
+      await sleep(900);if(tok!==my)return;
+      pStat.innerHTML="diffing against the previous snapshot…";
+      for(const l of pollLns){if(tok!==my)return;
+        pollLns.forEach(x=>x.classList.remove("scan"));
+        l.classList.add("scan");await sleep(330);}
+      if(tok!==my)return;
+      pollLns.forEach(x=>x.classList.remove("scan"));
+      pollLns[2].classList.add("found");
+      pStat.innerHTML="found it: <b>seats 3 → 5</b> · the other lines were identical";
+      await sleep(800);if(tok!==my)return;
+      pStat.innerHTML="now construct the action ourselves…";
+      await sleep(700);if(tok!==my)return;
+      pStat.innerHTML="dispatch(entitlements/updated) — finally. Same result, much later.";
+      $("#duo-stat").innerHTML="same update · the SSE client finished before the polling client even found the change";})();
+  });
+})();
+</script>
+</body>
+</html>
