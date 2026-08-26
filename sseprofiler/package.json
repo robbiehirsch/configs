@@ -1,0 +1,18 @@
+{
+  "name": "pubsub-observer",
+  "version": "0.1.0",
+  "description": "Passive collector and admin UI for pub/sub topology, Kafka fanout, and SSE connection lifecycle across many apps.",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "bin": { "pubsub-observer": "./src/main.js" },
+  "scripts": {
+    "start": "node src/main.js",
+    "synth": "node tools/synth.js",
+    "dev": "node src/main.js & node tools/synth.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "private": true,
+  "license": "UNLICENSED"
+}

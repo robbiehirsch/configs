@@ -1,0 +1,27 @@
+# `docker compose up` gives a populated dashboard with no real app attached:
+# the synth service is an ordinary ingest client, so what you see is produced
+# entirely through the public protocol.
+services:
+  observer:
+    build: { context: ., dockerfile: docker/Dockerfile }
+    ports: ["9099:9099"]
+    environment:
+      OBSERVER_PORT: 9099
+      # OBSERVER_KEY: change-me          # uncomment to require X-Observer-Key
+      OBSERVER_MAX_EVENTS_PER_APP: 20000
+      OBSERVER_MAX_TRACES_PER_APP: 2000
+      OBSERVER_MAX_APPS: 64
+    restart: unless-stopped
+    # Memory is bounded by the ring buffer sizes above, so a hard limit is a
+    # safety net rather than the primary control.
+    mem_limit: 512m
+
+  # Development fixture only — delete this service when pointing at real apps.
+  synth:
+    build: { context: ., dockerfile: docker/Dockerfile }
+    command: ["node", "tools/synth.js", "--url", "http://observer:9099", "--app", "checkout", "--conns", "40", "--debug"]
+    depends_on: [observer]
+    restart: unless-stopped
+    # Inherits the image's HTTP healthcheck, which it would always fail — synth
+    # is a client and serves nothing.
+    healthcheck: { disable: true }

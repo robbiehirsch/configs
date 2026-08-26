@@ -1,0 +1,12 @@
+{
+  "name": "@yourorg/observer-sdk",
+  "version": "0.1.0",
+  "description": "Instrumentation client for pubsub-observer. Reports pub/sub, Kafka, and SSE telemetry over HTTP.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": {},
+  "files": ["src", "README.md"],
+  "license": "UNLICENSED"
+}

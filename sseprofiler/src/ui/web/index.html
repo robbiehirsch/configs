@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pubsub-observer</title>
+<link rel="stylesheet" href="/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>◎</text></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="brand">pubsub&#8209;observer <span id="hostLabel"></span></div>
+  <label class="status">app
+    <select id="appPick"><option value="">all</option></select>
+  </label>
+  <div class="spacer"></div>
+  <div class="status"><span id="dot" class="livedot"></span><span id="conn">connecting…</span></div>
+  <button class="ghost" id="themeBtn" title="Toggle theme">◐</button>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-view="topology" aria-selected="true">Topology</button>
+  <button role="tab" data-view="fanout"   aria-selected="false">Kafka fanout</button>
+  <button role="tab" data-view="sse"      aria-selected="false">SSE lifecycle</button>
+  <button role="tab" data-view="apps"     aria-selected="false">Apps</button>
+</nav>
+
+<main>
+  <!-- ------------------------------------------------------- topology -->
+  <section class="view" id="v-topology">
+    <div class="tiles" id="topoTiles"></div>
+    <div class="panel" style="margin-top:14px">
+      <h2>Live topology &mdash; kafka &rarr; pub/sub topic &rarr; subscribers</h2>
+      <div class="body"><div id="topoWrap"></div></div>
+    </div>
+    <div class="row two" style="margin-top:14px">
+      <div class="panel">
+        <h2>Topics</h2>
+        <div class="body scroll"><table id="topicTable"></table></div>
+      </div>
+      <div class="panel">
+        <h2>Signals</h2>
+        <div class="body scroll" id="signals"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------------- fanout -->
+  <section class="view" id="v-fanout" hidden>
+    <div class="row two">
+      <div class="panel">
+        <h2>Recent kafka messages</h2>
+        <div style="padding:0 12px" id="traceHint" hidden>
+          <button class="ghost" id="unfreeze" style="font-size:11px">⏸ list paused &mdash; resume live</button>
+        </div>
+        <div class="body tracelist" id="traceList"><div class="empty">waiting for traced messages…</div></div>
+      </div>
+      <div class="panel">
+        <h2>Fanout tree</h2>
+        <div class="body" id="traceTree"><div class="empty">select a message to reconstruct its blast radius</div></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h2>Amplification &mdash; deliveries per consumed kafka message</h2>
+      <div class="body"><table id="ampTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ sse -->
+  <section class="view" id="v-sse" hidden>
+    <div class="tiles" id="sseTiles"></div>
+    <div class="row two" style="margin-top:14px">
+      <div class="panel">
+        <h2>Connection churn</h2>
+        <div class="body" id="churn"></div>
+      </div>
+      <div class="panel">
+        <h2>Connection duration</h2>
+        <div class="body" id="durHist"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h2>Connections</h2>
+      <div class="body scroll"><table id="connTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- apps -->
+  <section class="view" id="v-apps" hidden>
+    <div id="appCards" class="row"></div>
+    <div class="panel" style="margin-top:14px">
+      <h2>Collector health</h2>
+      <div class="body"><table id="selfTable"></table></div>
+    </div>
+  </section>
+</main>
+
+<div id="tip"></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
