@@ -391,8 +391,8 @@ return {
     enabled = x.smart_splits,
     lazy = false,
     opts = {
-      default_amount = 3,
-      at_edge = "stop",
+      resize = { amount = 3 },
+      move = { at_edge = "stop" },
       ignored_filetypes = { "NvimTree", "neo-tree", "oil" },
     },
     config = function(_, opts)

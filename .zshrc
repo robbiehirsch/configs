@@ -14,7 +14,8 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 # p10k lives in different places per machine — take the first that exists
-for _p10k in /opt/homebrew/opt/powerlevel10k/powerlevel10k.zsh-theme \
+for _p10k in /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme \
+             /opt/homebrew/opt/powerlevel10k/powerlevel10k.zsh-theme \
              /usr/local/opt/powerlevel10k/powerlevel10k.zsh-theme \
              "$HOME/powerlevel10k/powerlevel10k.zsh-theme"; do
   [[ -r "$_p10k" ]] && { source "$_p10k"; break }
@@ -37,8 +38,8 @@ export PATH="$HOME/.local/share/bob/nvim-bin:$PATH"
 # ── oh-my-zsh ─────────────────────────────────────────────────────────────
 export ZSH="$HOME/.oh-my-zsh"
 
-# ZSH_THEME="powerlevel10k/powerlevel10k"
-ZSH_THEME="robbyrussell"
+# p10k is sourced directly above; an oh-my-zsh theme here would overwrite its prompt
+ZSH_THEME=""
 
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#ff00ff,bg=white,bold,underline"
 ZSH_AUTOSUGGEST_STRATEGY=(completion history match_prev_cmd)
@@ -55,9 +56,8 @@ plugins=(
     zsh-navigation-tools zsh-autosuggestions zsh-interactive-cd
     vscode
     jsontools copybuffer copyfile copypath
+    zsh-syntax-highlighting  # must stay last
 )
-# note: zsh-syntax-highlighting was in the old repo copy but not the live
-# file — re-add to the list above if you miss it.
 
 # vi-mode plugin configs
 VI_MODE_RESET_PROMPT_ON_MODE_CHANGE=true
