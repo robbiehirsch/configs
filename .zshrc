@@ -97,6 +97,9 @@ fi
 alias fzgit="git grep --line-number '' | fzf --delimiter : --preview 'nl {1}' --preview-window '+{2}-5'"
 
 # ── functions ─────────────────────────────────────────────────────────────
+# xp — daily experiment folders (blender/photo/genai on the NAS, code local)
+[[ -f "$HOME/configs/zsh/xp.zsh" ]] && source "$HOME/configs/zsh/xp.zsh"
+
 function check_domains {
   local domains=("$@")
   local tlds=("com" "io" "ai" "net" "org")
