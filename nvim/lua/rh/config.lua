@@ -18,7 +18,7 @@ M.languages = {
   "go", "gomod", "gowork", "gotmpl", "templ",
   "typescript", "tsx", "javascript", "html", "css",
   "lua", "markdown", "markdown_inline",
-  "json", "jsonc", "yaml", "toml", "sql", "bash", "dockerfile", "diff", "git_config",
+  "json", "yaml", "toml", "sql", "bash", "dockerfile", "diff", "git_config",
 }
 
 -- LSP servers auto-installed via mason and enabled via vim.lsp.enable().
